@@ -357,7 +357,8 @@ ExecutionState &BFSSearcher::selectState() {
 	/** ValueSearch - Usage Example Start */
 	std::map<std::string, double> dbl_map;
 	std::map<std::string, std::string> str_map;
-	FeatureExtractor::extract(&(*states.front()), dbl_map, str_map, 1);
+	int is_debug = 1;
+	FeatureExtractor::extract(&(*states.front()), dbl_map, str_map, is_debug);
 	/** ValueSearch - Usage Example End */  
   return *states.front();
 }

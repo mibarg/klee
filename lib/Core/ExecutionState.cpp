@@ -13,7 +13,6 @@
 #include "klee/Internal/Module/InstructionInfoTable.h"
 #include "klee/Internal/Module/KInstruction.h"
 #include "klee/Internal/Module/KModule.h"
-
 #include "klee/Expr.h"
 
 #include "Memory.h"
@@ -27,6 +26,10 @@
 #include <map>
 #include <set>
 #include <stdarg.h>
+
+//@COMPILATION_PROJECT:
+#include "klee/util/StringUtils.h"
+#include "klee/util/ExprPPrinter.h"
 
 using namespace llvm;
 using namespace klee;
@@ -377,3 +380,88 @@ void ExecutionState::dumpStack(llvm::raw_ostream &out) const {
     target = sf.caller;
   }
 }
+
+
+//@COMPILATION_PROJECT
+void ExecutionState::extractStateMaps(std::map<std::string, double> &dbl_map, std::map<std::string, std::string> &str_map, bool debug){
+  // Instructions Features
+    // get type name
+    std::string pc_type_str;
+    llvm::raw_string_ostream pc_rso(pc_type_str);
+    this->pc->inst->getType()->print(pc_rso);
+    dbl_map.insert(std::pair<std::string, double>(INSTR_PC_OPERANDS, (double) this->pc->inst->getNumOperands()));
+    dbl_map.insert(std::pair<std::string, double>(INSTR_PC_OPCODE, (double) this->pc->inst->getOpcode()));
+    dbl_map.insert(std::pair<std::string, double>(INSTR_PC_USE_EMPTY, (double) this->pc->inst->use_empty()));
+    str_map.insert(std::pair<std::string, std::string>(INSTR_PC_TYPE, pc_rso.str().c_str()));
+
+    std::string prevpc_type_str;
+    llvm::raw_string_ostream prevpc_rso(prevpc_type_str);
+    this->prevPC->inst->getType()->print(prevpc_rso);
+    dbl_map.insert(std::pair<std::string, double>(INSTR_PPC_OPERANDS, (double) this->prevPC->inst->getNumOperands()));
+    dbl_map.insert(std::pair<std::string, double>(INSTR_PPC_OPCODE, (double) this->prevPC->inst->getOpcode()));
+    dbl_map.insert(std::pair<std::string, double>(INSTR_PPC_USE_EMPTY, (double) this->prevPC->inst->use_empty()));
+    str_map.insert(std::pair<std::string, std::string>(INSTR_PPC_TYPE, prevpc_rso.str().c_str()));
+
+    // Constraints Features
+    // get constraints string representation
+    const char * constr = get_constraints();
+
+    // Propositional SAT features
+
+    // suggested by "Hardness Estimation of QFBV SMT Problems"
+    int num_ands = count_occurences(constr, (char *)"And");
+    int num_asserted = (int) this->constraints.size(); //# of asserted formulas
+    int num_eq = count_occurences(constr, (char *)"Eq");
+    int num_xor = count_occurences(constr, (char *)"Xor");
+    int num_bool = count_occurences(constr, (char *)"w"); //num of boolean varialbes to be assigned
+    int num_theory = count_occurences(constr, (char *)"("); //# of theory athoms
+    int clause_to_vars = (num_asserted + num_ands + 2 * (num_eq - 2) + num_xor) / (num_bool + num_theory);
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ANDS, (double) num_ands ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ASSERTED, (double) num_asserted ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_EQUAL, (double) num_eq ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_XOR, (double) num_xor ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_BOOL, (double) num_bool ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_THEORY, (double) num_theory ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_CLAUSES_VARS, (double) clause_to_vars ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_VARS_CLAUSES, (double) (clause_to_vars == 0) ? 1 : (1 / clause_to_vars) ));
+    // original
+    // arithmetic
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SUB, (double) count_occurences(constr, (char *)"Sub") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_MUL, (double) count_occurences(constr, (char *)"Mul") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_UDIV, (double) count_occurences(constr, (char *)"UDiv") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SDIV, (double) count_occurences(constr, (char *)"SDiv") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_UREM, (double) count_occurences(constr, (char *)"URem") ));
+    // bitwise
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_OR, (double) count_occurences(constr, (char *)"Or") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SHL, (double) count_occurences(constr, (char *)"Shl") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_LSHR, (double) count_occurences(constr, (char *)"LShr") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ASHR, (double) count_occurences(constr, (char *)"AShr") ));
+    // Bitvector Manipulation
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_EXTRACT, (double) count_occurences(constr, (char *)"Extract") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_CONCAT, (double) count_occurences(constr, (char *)"Concat") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ZEXT, (double) count_occurences(constr, (char *)"ZExt") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SEXT, (double) count_occurences(constr, (char *)"SExt") ));
+
+    // Macros
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_LSB, (double) count_occurences(constr, (char *)"ReadLSB") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_MSB, (double) count_occurences(constr, (char *)"ReadMSB") ));
+
+    // Propositional SAT features
+    double clause_depth [3];
+    consecutive_occurences_stats(constr, '(', ')', clause_depth); // {std, avg, max}
+    dbl_map.insert(std::pair<std::string, double>(SAT_CLS_STD, clause_depth[0] ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_CLS_AVG, clause_depth[1] ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_CLS_MAX, clause_depth[2] ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_CAPS, (double) count_capitals(constr) ));
+}
+
+/**	Extracts a string representation in KQuery format of the current constraints, from the Execution state*/
+const char * ExecutionState::get_constraints() {
+    std::string Str;
+    llvm::raw_string_ostream info(Str);
+    ExprPPrinter::printConstraints(info, this->constraints);
+    std::string res = info.str();
+
+    return res.c_str();
+}
+

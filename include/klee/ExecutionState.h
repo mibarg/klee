@@ -61,6 +61,44 @@ struct StackFrame {
   ~StackFrame();
 };
 
+    //@COMPILATION_PROJECT
+
+#define INSTR_PC_OPERANDS "instr_pc_getNumOperands"
+#define INSTR_PC_OPCODE "instr_pc_getOpcode"
+#define INSTR_PC_USE_EMPTY "instr_pc_use_empty"
+#define INSTR_PC_TYPE "instr_pc_getType"
+#define INSTR_PPC_OPERANDS "instr_prevpc_getNumOperands"
+#define INSTR_PPC_OPCODE "instr_prevpc_getOpcode"
+#define INSTR_PPC_USE_EMPTY "instr_prevpc_use_empty"
+#define INSTR_PPC_TYPE "instr_prevpc_getType"
+#define SAT_NUM_ANDS "sat_paper_num_ands"
+#define SAT_NUM_ASSERTED "sat_paper_num_asserted"
+#define SAT_NUM_EQUAL "sat_paper_num_eq"
+#define SAT_NUM_XOR "sat_paper_num_xor"
+#define SAT_NUM_BOOL "sat_paper_num_bool"
+#define SAT_NUM_THEORY "sat_paper_num_theory"
+#define SAT_NUM_CLAUSES_VARS "sat_paper_clause_to_vars"
+#define SAT_NUM_VARS_CLAUSES "sat_paper_vars_clause"
+#define SAT_NUM_SUB "sat_org_num_sub"
+#define SAT_NUM_MUL "sat_org_num_mul"
+#define SAT_NUM_UDIV "sat_org_num_udiv"
+#define SAT_NUM_SDIV "sat_org_num_sdiv"
+#define SAT_NUM_UREM "sat_org_num_urem"
+#define SAT_NUM_OR "sat_org_num_or"
+#define SAT_NUM_SHL "sat_org_num_shl"
+#define SAT_NUM_LSHR "sat_org_num_lshr"
+#define SAT_NUM_ASHR "sat_org_num_ashr"
+#define SAT_NUM_EXTRACT "sat_org_num_extract"
+#define SAT_NUM_CONCAT "sat_org_num_concat"
+#define SAT_NUM_ZEXT "sat_org_num_zext"
+#define SAT_NUM_SEXT "sat_org_num_sext"
+#define SAT_NUM_LSB "sat_org_num_lsb"
+#define SAT_NUM_MSB "sat_org_num_msb"
+#define SAT_CLS_STD "sat_org_cls_std"
+#define SAT_CLS_AVG "sat_org_cls_avg"
+#define SAT_CLS_MAX "sat_org_cls_max"
+#define SAT_NUM_CAPS "sat_org_num_capitals"
+
 /// @brief ExecutionState representing a path under exploration
 class ExecutionState {
 public:
@@ -169,6 +207,9 @@ public:
 
   bool merge(const ExecutionState &b);
   void dumpStack(llvm::raw_ostream &out) const;
+    //@COMPILATION_PROJECT
+    void extractStateMaps(std::map<std::string, double> &dbl_map, std::map<std::string, std::string> &str_map, bool debug);
+    const char* get_constraints();
 };
 }
 

@@ -64,89 +64,6 @@ Searcher::~Searcher() {
 #include "klee/util/ExprPPrinter.h"
 #include <map>
 #include <string>
-class FeatureExtractor {
-	public: 
-	
-		/**
-		Summarize ExecutionState into a feature vector
-		*/
-		static void extract(ExecutionState * current, std::map<std::string, double> &dbl_map, std::map<std::string, std::string> &str_map, int debug) {
-
-			current->extractStateMaps(dbl_map, str_map, debug);
-			// WeightedRandomSearcher features
-			if (true) {		
-				dbl_map.insert(std::pair<std::string, double>("weights_Depth", get_random_searcher_weights(current, "Depth")));
-				dbl_map.insert(std::pair<std::string, double>("weights_InstCount", get_random_searcher_weights(current, "InstCount")));
-				dbl_map.insert(std::pair<std::string, double>("weights_CPInstCount", get_random_searcher_weights(current, "CPInstCount")));
-				dbl_map.insert(std::pair<std::string, double>("weights_QueryCost", get_random_searcher_weights(current, "QueryCost")));
-				dbl_map.insert(std::pair<std::string, double>("weights_CoveringNew", get_random_searcher_weights(current, "CoveringNew")));
-				dbl_map.insert(std::pair<std::string, double>("weights_MinDistToUncovered", get_random_searcher_weights(current, "MinDistToUncovered")));
-				dbl_map.insert(std::pair<std::string, double>("weights_coveredNew", (double) current->coveredNew));
-				dbl_map.insert(std::pair<std::string, double>("weights_forkDisabled", (double) current->forkDisabled));
-			}
-			
-			// Debug
-			if (debug) {
-				klee_message("####################################");
-				klee_message("######### State Features ###########");
-				for(std::map<std::string, double>::iterator iter = dbl_map.begin(); iter != dbl_map.end(); ++iter) {
-					klee_message("%s=%.2f", iter->first.c_str(), iter->second);
-				}
-				for(std::map<std::string, std::string>::iterator iter = str_map.begin(); iter != str_map.end(); ++iter) {
-					klee_message("%s=%s", iter->first.c_str(), iter->second.c_str());
-				}
-				klee_message("####################################");
-			}
-		}
-		
-	private:
-
-
-		
-		/* ExecutionState-related methods */
-		
-		/**
-		Given an ExecutionState and a choosen WeightType in string format,
-		Extract the weight given by WeightedRandomSearcher to this state with this weight type.
-		Possible types are: Depth, InstCount, CPInstCount, QueryCost, CoveringNew, MinDistToUncovered
-		*/
-		static double get_random_searcher_weights(ExecutionState *es, const std::string type) {
-			if (type == "Depth") {
-					return es->weight;
-			} else if (type == "InstCount") {
-					uint64_t count = theStatisticManager->getIndexedValue(stats::instructions, es->pc->info->id);
-					double inv = 1. / std::max((uint64_t) 1, count);
-					return inv * inv;
-			} else if (type == "CPInstCount") {
-					StackFrame &sf = es->stack.back();
-					uint64_t count = sf.callPathNode->statistics.getValue(stats::instructions);
-					double inv = 1. / std::max((uint64_t) 1, count);
-					return inv;
-			} else if (type == "QueryCost") {
-					return (es->queryCost < .1) ? 1. : 1./es->queryCost;
-			} else if (type == "CoveringNew") {
-					uint64_t md2u = computeMinDistToUncovered(es->pc, es->stack.back().minDistToUncoveredOnReturn);
-					double invMD2U = 1. / (md2u ? md2u : 10000);
-					double invCovNew = 0.;
-					if (es->instsSinceCovNew)
-						invCovNew = 1. / std::max(1, (int) es->instsSinceCovNew - 1000);
-					return (invCovNew * invCovNew + invMD2U * invMD2U);
-			} else if (type == "MinDistToUncovered") {
-					uint64_t md2u = computeMinDistToUncovered(es->pc, es->stack.back().minDistToUncoveredOnReturn);
-					double invMD2U = 1. / (md2u ? md2u : 10000);
-					return invMD2U * invMD2U;
-			}
-			return -1.0;
-		}
-};
-
-/** 
-	###################
-  # ValueSearch End #
-	###################
-*/
-
-///
 
 ExecutionState &DFSSearcher::selectState() {
   return *states.back();
@@ -189,7 +106,7 @@ ExecutionState &BFSSearcher::selectState() {
 	std::map<std::string, double> dbl_map;
 	std::map<std::string, std::string> str_map;
 	int is_debug = 1;
-	FeatureExtractor::extract(&(*states.front()), dbl_map, str_map, is_debug);
+	states.front()->extractStateMaps(dbl_map,str_map,is_debug);
 	/** ValueSearch - Usage Example End */  
   return *states.front();
 }

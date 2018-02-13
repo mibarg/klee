@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+
 using namespace klee;
 
 /* String-related methods */

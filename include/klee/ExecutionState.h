@@ -98,6 +98,14 @@ struct StackFrame {
 #define SAT_CLS_AVG "sat_org_cls_avg"
 #define SAT_CLS_MAX "sat_org_cls_max"
 #define SAT_NUM_CAPS "sat_org_num_capitals"
+#define WEIGHT_DEPTH "weights_Depth"
+#define WEIGHT_INST_CNT "weights_InstCount"
+#define WEIGHT_CPI_CNT "weights_CPInstCount"
+#define WEIGHT_QUERY_CST "weights_QueryCost"
+#define WEIGHT_COVER_NEW "weights_CoveringNew"
+#define WEIGHT_MIN_DIST_UNCVR "weights_MinDistToUncovered"
+#define WEIGHT_CVR_NEW "weights_coveredNew"
+#define WEIGHT_FORK "weights_forkDisabled"
 
 /// @brief ExecutionState representing a path under exploration
 class ExecutionState {
@@ -184,7 +192,8 @@ public:
   void removeFnAlias(std::string fn);
 
 private:
-  ExecutionState() : ptreeNode(0) {}
+  ExecutionState() : ptreeNode(0) {};
+    double get_random_searcher_weights(const std::string type);
 
 public:
   ExecutionState(KFunction *kf);

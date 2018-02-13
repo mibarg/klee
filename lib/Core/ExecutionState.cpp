@@ -30,6 +30,12 @@
 //@COMPILATION_PROJECT:
 #include "klee/util/StringUtils.h"
 #include "klee/util/ExprPPrinter.h"
+#include "klee/Statistics.h"
+#include "llvm/Support/Errno.h"
+#include "klee/Constraints.h"
+#include "StatsTracker.h"
+#include "CoreStats.h"
+#include "klee/Internal/Support/ErrorHandling.h"
 
 using namespace llvm;
 using namespace klee;
@@ -453,6 +459,28 @@ void ExecutionState::extractStateMaps(std::map<std::string, double> &dbl_map, st
     dbl_map.insert(std::pair<std::string, double>(SAT_CLS_AVG, clause_depth[1] ));
     dbl_map.insert(std::pair<std::string, double>(SAT_CLS_MAX, clause_depth[2] ));
     dbl_map.insert(std::pair<std::string, double>(SAT_NUM_CAPS, (double) StringUtils::count_capitals(constr) ));
+    // WeightedRandomSearcher features
+    dbl_map.insert(std::pair<std::string, double>(WEIGHT_DEPTH, get_random_searcher_weights("Depth")));
+    dbl_map.insert(std::pair<std::string, double>(WEIGHT_INST_CNT, get_random_searcher_weights("InstCount")));
+    dbl_map.insert(std::pair<std::string, double>(WEIGHT_CPI_CNT, get_random_searcher_weights("CPInstCount")));
+    dbl_map.insert(std::pair<std::string, double>(WEIGHT_QUERY_CST, get_random_searcher_weights("QueryCost")));
+    dbl_map.insert(std::pair<std::string, double>(WEIGHT_COVER_NEW, get_random_searcher_weights("CoveringNew")));
+    dbl_map.insert(std::pair<std::string, double>(WEIGHT_MIN_DIST_UNCVR, get_random_searcher_weights("MinDistToUncovered")));
+    dbl_map.insert(std::pair<std::string, double>(WEIGHT_CVR_NEW, (double) this->coveredNew));
+    dbl_map.insert(std::pair<std::string, double>(WEIGHT_FORK , (double) this->forkDisabled));
+
+    // Debug
+    if (debug) {
+        klee_message("####################################");
+        klee_message("######### State Features ###########");
+        for(std::map<std::string, double>::iterator iter = dbl_map.begin(); iter != dbl_map.end(); ++iter) {
+            klee_message("%s=%.2f", iter->first.c_str(), iter->second);
+        }
+        for(std::map<std::string, std::string>::iterator iter = str_map.begin(); iter != str_map.end(); ++iter) {
+            klee_message("%s=%s", iter->first.c_str(), iter->second.c_str());
+        }
+        klee_message("####################################");
+    }
 }
 
 /**	Extracts a string representation in KQuery format of the current constraints, from the Execution state*/
@@ -465,3 +493,36 @@ const char * ExecutionState::get_constraints() {
     return res.c_str();
 }
 
+/**
+		Given an ExecutionState and a choosen WeightType in string format,
+		Extract the weight given by WeightedRandomSearcher to this state with this weight type.
+		Possible types are: Depth, InstCount, CPInstCount, QueryCost, CoveringNew, MinDistToUncovered
+		*/
+double ExecutionState::get_random_searcher_weights(const std::string type) {
+    if (type == "Depth") {
+        return this->weight;
+    } else if (type == "InstCount") {
+        uint64_t count = theStatisticManager->getIndexedValue(stats::instructions, this->pc->info->id);
+        double inv = 1. / std::max((uint64_t) 1, count);
+        return inv * inv;
+    } else if (type == "CPInstCount") {
+        StackFrame &sf = this->stack.back();
+        uint64_t count = sf.callPathNode->statistics.getValue(stats::instructions);
+        double inv = 1. / std::max((uint64_t) 1, count);
+        return inv;
+    } else if (type == "QueryCost") {
+        return (this->queryCost < .1) ? 1. : 1./this->queryCost;
+    } else if (type == "CoveringNew") {
+        uint64_t md2u = computeMinDistToUncovered(this->pc, this->stack.back().minDistToUncoveredOnReturn);
+        double invMD2U = 1. / (md2u ? md2u : 10000);
+        double invCovNew = 0.;
+        if (this->instsSinceCovNew)
+            invCovNew = 1. / std::max(1, (int) this->instsSinceCovNew - 1000);
+        return (invCovNew * invCovNew + invMD2U * invMD2U);
+    } else if (type == "MinDistToUncovered") {
+        uint64_t md2u = computeMinDistToUncovered(this->pc, this->stack.back().minDistToUncoveredOnReturn);
+        double invMD2U = 1. / (md2u ? md2u : 10000);
+        return invMD2U * invMD2U;
+    }
+    return -1.0;
+}

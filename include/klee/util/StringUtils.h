@@ -6,16 +6,18 @@
 #define KLEE_STRINGUTILS_H
 
 /* String-related methods */
-
-/**
+namespace klee {
+    class StringUtils {
+    public:
+        /**
 Count occurences of substr in str
 */
-static int count_occurences(const char * str, char * substr);
+        static int count_occurences(const char *str, char *substr);
 
 /**
 Count the number of capital letters in a string
 */
-static int count_capitals(const char * str) ;
+        static int count_capitals(const char *str);
 
 /**
 Given a String str, a search_char and a break char, calculates the
@@ -25,5 +27,8 @@ and saved into the first three places in results
 
 @assert len(results) >= 3
 */
-static void consecutive_occurences_stats(const char * str, char search_char, char break_char, double * results);
+        static void consecutive_occurences_stats(const char *str, char search_char, char break_char, double *results);
+
+    };
+};
 #endif //KLEE_STRINGUTILS_H

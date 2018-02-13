@@ -15,11 +15,12 @@ klee_add_component(kleaverExpr
   ExprEvaluator.cpp
   ExprPPrinter.cpp
   ExprSMTLIBPrinter.cpp
-  ExprUtil.cpp
-  ExprVisitor.cpp
-  Lexer.cpp
-  Parser.cpp
+      ExprUtil.cpp
+      ExprVisitor.cpp
+      Lexer.cpp
+      Parser.cpp
   Updates.cpp
+  StringUtils.cpp
 )
 
 set(LLVM_COMPONENTS

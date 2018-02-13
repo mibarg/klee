@@ -409,12 +409,12 @@ void ExecutionState::extractStateMaps(std::map<std::string, double> &dbl_map, st
     // Propositional SAT features
 
     // suggested by "Hardness Estimation of QFBV SMT Problems"
-    int num_ands = count_occurences(constr, (char *)"And");
+    int num_ands = StringUtils::count_occurences(constr, (char *)"And");
     int num_asserted = (int) this->constraints.size(); //# of asserted formulas
-    int num_eq = count_occurences(constr, (char *)"Eq");
-    int num_xor = count_occurences(constr, (char *)"Xor");
-    int num_bool = count_occurences(constr, (char *)"w"); //num of boolean varialbes to be assigned
-    int num_theory = count_occurences(constr, (char *)"("); //# of theory athoms
+    int num_eq = StringUtils::count_occurences(constr, (char *)"Eq");
+    int num_xor = StringUtils::count_occurences(constr, (char *)"Xor");
+    int num_bool = StringUtils::count_occurences(constr, (char *)"w"); //num of boolean varialbes to be assigned
+    int num_theory = StringUtils::count_occurences(constr, (char *)"("); //# of theory athoms
     int clause_to_vars = (num_asserted + num_ands + 2 * (num_eq - 2) + num_xor) / (num_bool + num_theory);
     dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ANDS, (double) num_ands ));
     dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ASSERTED, (double) num_asserted ));
@@ -426,33 +426,33 @@ void ExecutionState::extractStateMaps(std::map<std::string, double> &dbl_map, st
     dbl_map.insert(std::pair<std::string, double>(SAT_NUM_VARS_CLAUSES, (double) (clause_to_vars == 0) ? 1 : (1 / clause_to_vars) ));
     // original
     // arithmetic
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SUB, (double) count_occurences(constr, (char *)"Sub") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_MUL, (double) count_occurences(constr, (char *)"Mul") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_UDIV, (double) count_occurences(constr, (char *)"UDiv") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SDIV, (double) count_occurences(constr, (char *)"SDiv") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_UREM, (double) count_occurences(constr, (char *)"URem") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SUB, (double) StringUtils::count_occurences(constr, (char *)"Sub") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_MUL, (double) StringUtils::count_occurences(constr, (char *)"Mul") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_UDIV, (double) StringUtils::count_occurences(constr, (char *)"UDiv") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SDIV, (double) StringUtils::count_occurences(constr, (char *)"SDiv") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_UREM, (double) StringUtils::count_occurences(constr, (char *)"URem") ));
     // bitwise
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_OR, (double) count_occurences(constr, (char *)"Or") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SHL, (double) count_occurences(constr, (char *)"Shl") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_LSHR, (double) count_occurences(constr, (char *)"LShr") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ASHR, (double) count_occurences(constr, (char *)"AShr") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_OR, (double) StringUtils::count_occurences(constr, (char *)"Or") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SHL, (double) StringUtils::count_occurences(constr, (char *)"Shl") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_LSHR, (double) StringUtils::count_occurences(constr, (char *)"LShr") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ASHR, (double) StringUtils::count_occurences(constr, (char *)"AShr") ));
     // Bitvector Manipulation
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_EXTRACT, (double) count_occurences(constr, (char *)"Extract") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_CONCAT, (double) count_occurences(constr, (char *)"Concat") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ZEXT, (double) count_occurences(constr, (char *)"ZExt") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SEXT, (double) count_occurences(constr, (char *)"SExt") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_EXTRACT, (double) StringUtils::count_occurences(constr, (char *)"Extract") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_CONCAT, (double) StringUtils::count_occurences(constr, (char *)"Concat") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ZEXT, (double) StringUtils::count_occurences(constr, (char *)"ZExt") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SEXT, (double) StringUtils::count_occurences(constr, (char *)"SExt") ));
 
     // Macros
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_LSB, (double) count_occurences(constr, (char *)"ReadLSB") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_MSB, (double) count_occurences(constr, (char *)"ReadMSB") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_LSB, (double) StringUtils::count_occurences(constr, (char *)"ReadLSB") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_MSB, (double) StringUtils::count_occurences(constr, (char *)"ReadMSB") ));
 
     // Propositional SAT features
     double clause_depth [3];
-    consecutive_occurences_stats(constr, '(', ')', clause_depth); // {std, avg, max}
+    StringUtils::consecutive_occurences_stats(constr, '(', ')', clause_depth); // {std, avg, max}
     dbl_map.insert(std::pair<std::string, double>(SAT_CLS_STD, clause_depth[0] ));
     dbl_map.insert(std::pair<std::string, double>(SAT_CLS_AVG, clause_depth[1] ));
     dbl_map.insert(std::pair<std::string, double>(SAT_CLS_MAX, clause_depth[2] ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_CAPS, (double) count_capitals(constr) ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_CAPS, (double) StringUtils::count_capitals(constr) ));
 }
 
 /**	Extracts a string representation in KQuery format of the current constraints, from the Execution state*/

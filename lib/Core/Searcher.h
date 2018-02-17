@@ -67,6 +67,7 @@ namespace klee {
     }
 
     enum CoreSearchType {
+      SMART,
       DFS,
       BFS,
       RandomState,
@@ -80,6 +81,20 @@ namespace klee {
     };
   };
 
+  class SMARTSearcher : public Searcher {
+    std::vector<ExecutionState*> states;
+
+  public:
+    ExecutionState &selectState();
+    void update(ExecutionState *current,
+                const std::vector<ExecutionState *> &addedStates,
+                const std::vector<ExecutionState *> &removedStates);
+    bool empty() { return states.empty(); }
+    void printName(llvm::raw_ostream &os) {
+      os << "SMARTSearcher\n";
+    }
+  };
+  
   class DFSSearcher : public Searcher {
     std::vector<ExecutionState*> states;
 

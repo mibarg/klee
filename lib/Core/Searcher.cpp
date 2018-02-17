@@ -41,6 +41,7 @@
 
 using namespace klee;
 using namespace llvm;
+unisg namespace std;
 
 namespace {
   cl::opt<bool>
@@ -64,9 +65,42 @@ Searcher::~Searcher() {
 #include "klee/util/ExprPPrinter.h"
 #include <map>
 #include <string>
+#include <iostream>
 
-ExecutionState &DFSSearcher::selectState() {
+ExecutionState &SMARTSearcher::selectState() {
   return *states.back();
+}
+
+
+void SMARTSearcher::update(ExecutionState *current,
+                         const std::vector<ExecutionState *> &addedStates,
+                         const std::vector<ExecutionState *> &removedStates) {
+  cout << "print here";
+  states.insert(states.end(),
+                addedStates.begin(),
+                addedStates.end());
+  for (std::vector<ExecutionState *>::const_iterator it = removedStates.begin(),
+                                                     ie = removedStates.end();
+       it != ie; ++it) {
+    ExecutionState *es = *it;
+    if (es == states.back()) {
+      states.pop_back();
+    } else {
+      bool ok = false;
+
+      for (std::vector<ExecutionState*>::iterator it = states.begin(),
+             ie =                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                states.end(); it != ie; ++it) {
+        if (es==*it) {
+          states.erase(it);
+          ok = true;
+          break;
+        }
+      }
+
+      (void) ok;
+      assert(ok && "invalid state removed");
+    }
+  }
 }
 
 void DFSSearcher::update(ExecutionState *current,

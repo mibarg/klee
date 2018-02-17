@@ -75,7 +75,7 @@ ExecutionState &SMARTSearcher::selectState() {
 void SMARTSearcher::update(ExecutionState *current,
                          const std::vector<ExecutionState *> &addedStates,
                          const std::vector<ExecutionState *> &removedStates) {
-  cout << "print here";
+  cout << "print here\n";
   states.insert(states.end(),
                 addedStates.begin(),
                 addedStates.end());

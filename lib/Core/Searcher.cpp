@@ -62,6 +62,7 @@ Searcher::~Searcher() {
 #include <map>
 #include <string>
 #include <iostream>
+#include <fstream>
 
 ExecutionState &SMARTSearcher::selectState() {
   return *states.back();
@@ -75,7 +76,7 @@ void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionSt
   states.insert(states.end(),addedStates.begin(), addedStates.end());
   //Write the new states to the file:
   std::ofstream file;
-  file.open(outfilePath, std::fstream::out);
+  file.open(outfilePath, std::fstream::app);
   for (auto state : addedStates){
       std::map<std::string, double> dbl_map;
       std::map<std::string, std::string> str_map;
@@ -84,22 +85,22 @@ void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionSt
         cout << "first one"<<endl;
           for(auto tup:dbl_map) {
               file<<tup.first << ",";
-              cout<<tup.first<< " ";
+
           }
           for(auto tup:str_map) {
               file<<tup.first << ",";
-            cout<<tup.first<< " ";
+
           }
           firstInsert  = false;
-        cout<<endl;
+        file<<endl;
       }
     for(auto tup:dbl_map) {
       file<<tup.second << ",";
-      cout<<tup.second << ",";
+
     }
     for(auto tup:str_map) {
       file<<tup.second << ",";
-      cout<<tup.second << ",";
+
     }
     file<<std::endl;
   }

@@ -65,8 +65,9 @@ Searcher::~Searcher() {
 #include <fstream>
 
 ExecutionState &SMARTSearcher::selectState() {
-  return *states.back();
+  return *states[theRNG.getInt32()%states.size()];
 }
+
 ExecutionState &DFSSearcher::selectState() {
   return *states.back();
 }
@@ -109,25 +110,21 @@ void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionSt
                                                      ie = removedStates.end();
        it != ie; ++it) {
     ExecutionState *es = *it;
-    if (es == states.back()) {
-      states.pop_back();
-    } else {
-      bool ok = false;
+    bool ok = false;
 
-      for (std::vector<ExecutionState*>::iterator it = states.begin(),
-             ie =                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                states.end(); it != ie; ++it) {
-        if (es==*it) {
-          states.erase(it);
-          ok = true;
-          break;
-        }
+    for (std::vector<ExecutionState*>::iterator it = states.begin(),
+           ie = states.end(); it != ie; ++it) {
+      if (es==*it) {
+        states.erase(it);
+        ok = true;
+        break;
       }
-
-      (void) ok;
-      assert(ok && "invalid state removed");
     }
+    
+    assert(ok && "invalid state removed");
   }
 }
+
 
 void DFSSearcher::update(ExecutionState *current,
                          const std::vector<ExecutionState *> &addedStates,

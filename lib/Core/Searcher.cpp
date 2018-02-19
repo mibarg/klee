@@ -41,7 +41,7 @@
 
 using namespace klee;
 using namespace llvm;
-unisg namespace std;
+using namespace std;
 
 namespace {
   cl::opt<bool>
@@ -51,15 +51,11 @@ namespace {
 namespace klee {
   extern RNG theRNG;
 }
+std::string SMARTSearcher::outfilePath = "states_data";
 
 Searcher::~Searcher() {
 }
 
-/** 
-	#####################
-  # ValueSearch Start #
-	#####################
-*/
 #include "llvm/Support/Errno.h"
 #include "klee/Constraints.h"
 #include "klee/util/ExprPPrinter.h"
@@ -70,15 +66,38 @@ Searcher::~Searcher() {
 ExecutionState &SMARTSearcher::selectState() {
   return *states.back();
 }
+ExecutionState &DFSSearcher::selectState() {
+  return *states.back();
+}
 
-
-void SMARTSearcher::update(ExecutionState *current,
-                         const std::vector<ExecutionState *> &addedStates,
-                         const std::vector<ExecutionState *> &removedStates) {
+void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionState *> &addedStates,const std::vector<ExecutionState *> &removedStates) {
   cout << "print here\n";
-  states.insert(states.end(),
-                addedStates.begin(),
-                addedStates.end());
+  states.insert(states.end(),addedStates.begin(), addedStates.end());
+  //Write the new states to the file:
+  std::ofstream file;
+  file.open(outfilePath, std::fstream::out);
+  for (auto state : addedStates){
+      std::map<std::string, double> dbl_map;
+      std::map<std::string, std::string> str_map;
+      state->extractStateMaps(dbl_map, str_map, false);
+      if (firstInsert == true){
+          for(auto tup:dbl_map) {
+              file<<tup.first << ",";
+          }
+          for(auto tup:str_map) {
+              file<<tup.first << ",";
+          }
+          firstInsert  = false;
+      }
+    for(auto tup:dbl_map) {
+      file<<tup.second << ",";
+    }
+    for(auto tup:str_map) {
+      file<<tup.second << ",";
+    }
+    file<<std::endl;
+  }
+  file.close();
   for (std::vector<ExecutionState *>::const_iterator it = removedStates.begin(),
                                                      ie = removedStates.end();
        it != ie; ++it) {

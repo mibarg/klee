@@ -85,6 +85,8 @@ namespace klee {
     std::vector<ExecutionState*> states;
 
   public:
+      static std::string outfilePath;
+      bool firstInsert = true;
     ExecutionState &selectState();
     void update(ExecutionState *current,
                 const std::vector<ExecutionState *> &addedStates,

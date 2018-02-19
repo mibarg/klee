@@ -71,7 +71,7 @@ ExecutionState &DFSSearcher::selectState() {
 }
 
 void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionState *> &addedStates,const std::vector<ExecutionState *> &removedStates) {
-  cout << "print here\n";
+
   states.insert(states.end(),addedStates.begin(), addedStates.end());
   //Write the new states to the file:
   std::ofstream file;
@@ -81,19 +81,25 @@ void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionSt
       std::map<std::string, std::string> str_map;
       state->extractStateMaps(dbl_map, str_map, false);
       if (firstInsert == true){
+        cout << "first one"<<endl;
           for(auto tup:dbl_map) {
               file<<tup.first << ",";
+              cout<<tup.first<< " ";
           }
           for(auto tup:str_map) {
               file<<tup.first << ",";
+            cout<<tup.first<< " ";
           }
           firstInsert  = false;
+        cout<<endl;
       }
     for(auto tup:dbl_map) {
       file<<tup.second << ",";
+      cout<<tup.second << ",";
     }
     for(auto tup:str_map) {
       file<<tup.second << ",";
+      cout<<tup.second << ",";
     }
     file<<std::endl;
   }

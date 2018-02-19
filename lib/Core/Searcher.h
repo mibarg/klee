@@ -83,7 +83,7 @@ namespace klee {
 
   class SMARTSearcher : public Searcher {
     std::vector<ExecutionState*> states;
-
+    static void setOutputFileName();
   public:
       static std::string outfilePath;
       bool firstInsert = true;

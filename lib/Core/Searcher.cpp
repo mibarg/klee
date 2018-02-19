@@ -35,6 +35,14 @@
 #include "llvm/IR/CallSite.h"
 #endif
 
+#include "llvm/Support/Errno.h"
+#include "klee/Constraints.h"
+#include "klee/util/ExprPPrinter.h"
+#include <map>
+#include <string>
+#include <iostream>
+#include <fstream>
+#include <chrono>
 #include <cassert>
 #include <fstream>
 #include <climits>
@@ -42,6 +50,7 @@
 using namespace klee;
 using namespace llvm;
 using namespace std;
+using namespace std::chrono;
 
 namespace {
   cl::opt<bool>
@@ -51,37 +60,40 @@ namespace {
 namespace klee {
   extern RNG theRNG;
 }
-std::string SMARTSearcher::outfilePath = "states_data";
+
+std::string SMARTSearcher::outfilePath ;
 
 Searcher::~Searcher() {
 }
 
-#include "llvm/Support/Errno.h"
-#include "klee/Constraints.h"
-#include "klee/util/ExprPPrinter.h"
-#include <map>
-#include <string>
-#include <iostream>
-#include <fstream>
 
 ExecutionState &SMARTSearcher::selectState() {
   return *states.back();
 }
+
+
 ExecutionState &DFSSearcher::selectState() {
   return *states.back();
 }
 
+void SMARTSearcher::setOutputFileName(){
+  milliseconds ms = duration_cast< milliseconds >(system_clock::now().time_since_epoch() );
+  SMARTSearcher::outfilePath = std::to_string(ms.count());
+}
 void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionState *> &addedStates,const std::vector<ExecutionState *> &removedStates) {
 
   states.insert(states.end(),addedStates.begin(), addedStates.end());
   //Write the new states to the file:
   std::ofstream file;
-  file.open(outfilePath, std::fstream::app);
+
   for (auto state : addedStates){
       std::map<std::string, double> dbl_map;
       std::map<std::string, std::string> str_map;
       state->extractStateMaps(dbl_map, str_map, false);
       if (firstInsert == true){
+        SMARTSearcher::setOutputFileName();
+        std::cout<<"Writing states to file: "<< outfilePath<< std::endl;
+        file.open(outfilePath, std::fstream::app);
         cout << "first one"<<endl;
           for(auto tup:dbl_map) {
               file<<tup.first << ",";
@@ -93,6 +105,8 @@ void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionSt
           }
           firstInsert  = false;
         file<<endl;
+      } else{
+        file.open(outfilePath, std::fstream::app);
       }
     for(auto tup:dbl_map) {
       file<<tup.second << ",";

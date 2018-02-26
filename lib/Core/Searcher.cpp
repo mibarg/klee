@@ -8,12 +8,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "Searcher.h"
-
+#include <dirent.h>
 #include "CoreStats.h"
 #include "Executor.h"
 #include "PTree.h"
+#include <unistd.h>
 #include "StatsTracker.h"
-
 #include "klee/ExecutionState.h"
 #include "klee/Statistics.h"
 #include "klee/Internal/Module/InstructionInfoTable.h"
@@ -37,14 +37,13 @@
 
 #include "llvm/Support/Errno.h"
 #include "klee/Constraints.h"
-#include "klee/util/ExprPPrinter.h"
+//#include "klee/util/ExprPPrinter.h" \\TODO
 #include <map>
 #include <string>
 #include <iostream>
 #include <fstream>
 #include <chrono>
 #include <cassert>
-#include <fstream>
 #include <climits>
 
 using namespace klee;
@@ -70,13 +69,42 @@ Searcher::~Searcher() {
 ExecutionState &SMARTSearcher::selectState() {
   return *states[theRNG.getInt32()%states.size()];
 }
+
 ExecutionState &DFSSearcher::selectState() {
   return *states.back();
 }
 
 void SMARTSearcher::setOutputFileName(){
-  milliseconds ms = duration_cast< milliseconds >(system_clock::now().time_since_epoch() );
-  SMARTSearcher::outfilePath = std::to_string(ms.count());
+  char cwd[1024];
+  std::string prefix = "klee-out-";
+  int counter = 0;
+  bool shouldUseTime = false;unsigned char isFolder = 0x4;
+    //Failed getting pwd, write to a file with a name of time in miliseconds:
+  if (!(getcwd(cwd, sizeof(cwd)) != NULL)) {     shouldUseTime = true;  }
+  //write to states#.log with # current run according to the latest klee-out-#/
+  else {
+      std::string pwd(cwd);
+      DIR *dir;
+      struct dirent *ent;
+      dir = opendir(pwd.c_str());
+      if (dir != NULL) {
+          while ((ent = readdir(dir)) != NULL) {
+              auto res = std::mismatch(prefix.begin(), prefix.end(), std::string(ent->d_name).begin());
+              if (ent->d_type == isFolder && res.first == prefix.end()) {
+                  counter++;
+              }
+          }
+          closedir(dir);
+          SMARTSearcher::outfilePath = pwd + "/" + std::to_string(counter - 1) + ".log";
+      } else {    /* could not open directory */
+          shouldUseTime = false;
+      }
+  }
+  if (shouldUseTime){
+    milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+    SMARTSearcher::outfilePath = std::to_string(ms.count())+".log";
+  }
+
 }
 void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionState *> &addedStates,const std::vector<ExecutionState *> &removedStates) {
 

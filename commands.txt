@@ -1,0 +1,15 @@
+#Check for errors found:
+ls -1 klee-last/ |grep -A2 -B2 err
+
+#run KLee With time constraint:
+$KLEE/klee --warnings-only-to-file -max-time=40 --search=smart kleemaze0.o 
+
+#compile to bytecode: !!!might need another ../, depending on where we are running from..!!
+clang-3.4 -I ../include/ -g -c -o kleemaze0.o -emit-llvm KleeMaze0.c
+
+#view a test case:
+$KLEE/ktest-tool klee-last/test000716.ktest
+
+#compile klee:
+
+cd ../klee_build_dir/ && make -j && cd ../klee

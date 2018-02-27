@@ -389,7 +389,7 @@ void ExecutionState::dumpStack(llvm::raw_ostream &out) const {
 
 
 //@COMPILATION_PROJECT
-void ExecutionState::extractStateMaps(std::map<std::string, double> &dbl_map, std::map<std::string, std::string> &str_map, bool debug){
+void ExecutionState::extractStateMaps(std::map<std::string, double> &dbl_map, bool debug){
   // Instructions Features
     // get type name
     std::string pc_type_str;
@@ -398,7 +398,6 @@ void ExecutionState::extractStateMaps(std::map<std::string, double> &dbl_map, st
     dbl_map.insert(std::pair<std::string, double>(INSTR_PC_OPERANDS, (double) this->pc->inst->getNumOperands()));
     dbl_map.insert(std::pair<std::string, double>(INSTR_PC_OPCODE, (double) this->pc->inst->getOpcode()));
     dbl_map.insert(std::pair<std::string, double>(INSTR_PC_USE_EMPTY, (double) this->pc->inst->use_empty()));
-    str_map.insert(std::pair<std::string, std::string>(INSTR_PC_TYPE, pc_rso.str().c_str()));
 
     std::string prevpc_type_str;
     llvm::raw_string_ostream prevpc_rso(prevpc_type_str);
@@ -406,7 +405,6 @@ void ExecutionState::extractStateMaps(std::map<std::string, double> &dbl_map, st
     dbl_map.insert(std::pair<std::string, double>(INSTR_PPC_OPERANDS, (double) this->prevPC->inst->getNumOperands()));
     dbl_map.insert(std::pair<std::string, double>(INSTR_PPC_OPCODE, (double) this->prevPC->inst->getOpcode()));
     dbl_map.insert(std::pair<std::string, double>(INSTR_PPC_USE_EMPTY, (double) this->prevPC->inst->use_empty()));
-    str_map.insert(std::pair<std::string, std::string>(INSTR_PPC_TYPE, prevpc_rso.str().c_str()));
 
     // Constraints Features
     // get constraints string representation
@@ -475,9 +473,6 @@ void ExecutionState::extractStateMaps(std::map<std::string, double> &dbl_map, st
         klee_message("######### State Features ###########");
         for(std::map<std::string, double>::iterator iter = dbl_map.begin(); iter != dbl_map.end(); ++iter) {
             klee_message("%s=%.2f", iter->first.c_str(), iter->second);
-        }
-        for(std::map<std::string, std::string>::iterator iter = str_map.begin(); iter != str_map.end(); ++iter) {
-            klee_message("%s=%s", iter->first.c_str(), iter->second.c_str());
         }
         klee_message("####################################");
     }

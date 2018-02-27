@@ -10,6 +10,8 @@ clang-3.4 -I ../include/ -g -c -o kleemaze0.o -emit-llvm KleeMaze0.c
 #view a test case:
 $KLEE/ktest-tool klee-last/test000716.ktest
 
-#compile klee:
-
+#compile klee from klee directory:
 cd ../klee_build_dir/ && make -j && cd ../klee
+
+#when compiling from nothing:  
+CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0" cmake -DENABLE_SOLVER_STP=ON -DENABLE_POSIX_RUNTIME=ON -DENABLE_KLEE_UCLIBC=ON -DKLEE_UCLIBC_PATH=/home/liav/work/klee-uclibc -DGTEST_SRC_DIR=/home/liav/work/googletest-release-1.7.0 -DENABLE_SYSTEM_TESTS=ON -DENABLE_TCMALLOC=ON  -DENABLE_UNIT_TESTS=ON -DLLVM_CONFIG_BINARY=/usr/bin/llvm-config  /home/liav/work/klee

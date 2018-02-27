@@ -61,19 +61,12 @@ namespace klee {
 }
 
 std::string SMARTSearcher::outfilePath ;
-
+std::string SMARTWeightedSearcher::weightsFile = "weights.json";
 Searcher::~Searcher() {
 }
-
-
 ExecutionState &SMARTSearcher::selectState() {
   return *states[theRNG.getInt32()%states.size()];
 }
-
-ExecutionState &DFSSearcher::selectState() {
-  return *states.back();
-}
-
 void SMARTSearcher::setOutputFileName(){
   char cwd[1024];
   std::string prefix = "klee-out-";
@@ -114,18 +107,12 @@ void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionSt
 
   for (auto state : addedStates){
       std::map<std::string, double> dbl_map;
-      std::map<std::string, std::string> str_map;
-      state->extractStateMaps(dbl_map, str_map, false);
+      state->extractStateMaps(dbl_map, false);
       if (firstInsert == true){
         SMARTSearcher::setOutputFileName();
         std::cout<<"Writing states to file: "<< outfilePath<< std::endl;
         file.open(outfilePath, std::fstream::app);
-        cout << "first one"<<endl;
           for(auto tup:dbl_map) {
-              file<<tup.first << ",";
-
-          }
-          for(auto tup:str_map) {
               file<<tup.first << ",";
 
           }
@@ -135,10 +122,6 @@ void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionSt
         file.open(outfilePath, std::fstream::app);
       }
     for(auto tup:dbl_map) {
-      file<<tup.second << ",";
-
-    }
-    for(auto tup:str_map) {
       file<<tup.second << ",";
 
     }
@@ -164,6 +147,114 @@ void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionSt
   }
 }
 
+SMARTWeightedSearcher::SMARTWeightedSearcher(): states(new DiscretePDF<ExecutionState*>()){readWeights();}
+
+SMARTWeightedSearcher::~SMARTWeightedSearcher(){ delete states;};
+
+ExecutionState& SMARTWeightedSearcher::selectState(){return *states->choose(theRNG.getDoubleL());};
+
+bool SMARTWeightedSearcher::empty() { return states->empty(); };
+
+void SMARTWeightedSearcher::readWeights(){
+  std::ifstream wFile (weightsFile);
+  std::string line;
+  bool finished = false;
+  std::size_t lastChar = 0;
+  if(wFile.is_open()){
+    std::getline(wFile, line);
+    wFile.close();
+    //parse the json:
+    while(!finished){
+      //first find key:
+      std::size_t firstApos = line.find("\"", lastChar);
+      std::size_t secondApos = line.find("\"", firstApos+1);
+      std::size_t startDbl = line.find(" ", secondApos + 1);
+      std::size_t endDbl = line.find(",", startDbl + 1);
+      std::string key = line.substr(firstApos+1, secondApos-firstApos -1 ); //TODO is this exactly?
+      if (endDbl == std::string::npos){
+        endDbl = line.find("}", startDbl);
+        finished = true;
+      }
+      double value = std::stod(line.substr(startDbl + 1, endDbl - startDbl - 1));
+      weights.emplace(key, value);
+        std::cout<< "added weight from file"<< std::endl;
+        lastChar = endDbl;
+    }
+
+  } else{
+      weights.emplace(INSTR_PC_OPCODE,1);
+      weights.emplace(INSTR_PC_OPERANDS,1);
+    weights.emplace(INSTR_PC_USE_EMPTY,1);
+    weights.emplace(INSTR_PPC_OPERANDS ,1);
+    weights.emplace(INSTR_PPC_OPCODE ,1);
+    weights.emplace(INSTR_PPC_USE_EMPTY,1);
+    weights.emplace(SAT_NUM_ANDS,1);
+    weights.emplace(SAT_NUM_ASSERTED,1);
+    weights.emplace(SAT_NUM_EQUAL ,1);
+    weights.emplace(SAT_NUM_XOR,1);
+    weights.emplace(SAT_NUM_BOOL,1);
+    weights.emplace(SAT_NUM_THEORY,1);
+    weights.emplace(SAT_NUM_CLAUSES_VARS,1);
+    weights.emplace(SAT_NUM_VARS_CLAUSES,1);
+    weights.emplace(SAT_NUM_SUB,1);
+    weights.emplace(SAT_NUM_MUL,1);
+    weights.emplace(SAT_NUM_UDIV,1);
+    weights.emplace(SAT_NUM_SDIV,1);
+    weights.emplace(SAT_NUM_UREM,1);
+    weights.emplace(SAT_NUM_OR,1);
+    weights.emplace(SAT_NUM_SHL,1);
+    weights.emplace(SAT_NUM_LSHR,1);
+    weights.emplace(SAT_NUM_ASHR,1);
+    weights.emplace(SAT_NUM_EXTRACT,1);
+    weights.emplace(SAT_NUM_CONCAT,1);
+    weights.emplace(SAT_NUM_ZEXT,1);
+    weights.emplace(SAT_NUM_SEXT,1);
+    weights.emplace(SAT_NUM_MSB,1);
+    weights.emplace(SAT_NUM_MSB,1);
+    weights.emplace(SAT_CLS_STD,1);
+    weights.emplace(SAT_CLS_AVG,1);
+    weights.emplace(SAT_CLS_MAX,1);
+    weights.emplace(SAT_NUM_CAPS,1);
+    weights.emplace(WEIGHT_DEPTH,1);
+    weights.emplace(WEIGHT_INST_CNT,1);
+    weights.emplace(WEIGHT_CPI_CNT,1);
+    weights.emplace(WEIGHT_QUERY_CST,1);
+    weights.emplace(WEIGHT_COVER_NEW,1);
+    weights.emplace(WEIGHT_MIN_DIST_UNCVR,1);
+    weights.emplace(WEIGHT_CVR_NEW,1);
+    weights.emplace(WEIGHT_FORK,1);
+    std::cout << "used default weights" << std::endl;
+  }
+}
+
+double SMARTWeightedSearcher::getWeight(ExecutionState* state){
+  std::map<std::string, double> dblmap;
+  double score = 0;
+  state->extractStateMaps(dblmap, 0);
+  for (auto tup : dblmap){
+    score += tup.second*weights[tup.first];
+  }
+  return score;
+}
+
+void SMARTWeightedSearcher::update(ExecutionState *current,const std::vector<ExecutionState *> &addedStates,const std::vector<ExecutionState *> &removedStates){
+  if (current && std::find(removedStates.begin(), removedStates.end(), current) == removedStates.end()){
+    states->update(current, getWeight(current));
+  }
+  for (std::vector<ExecutionState *>::const_iterator it = addedStates.begin(),ie = addedStates.end();it != ie; ++it) {
+    ExecutionState *es = *it;
+    states->insert(es, getWeight(es));
+  }
+  for (std::vector<ExecutionState *>::const_iterator it = removedStates.begin(),
+               ie = removedStates.end();
+       it != ie; ++it) {
+    states->remove(*it);
+  }
+}
+
+ExecutionState &DFSSearcher::selectState() {
+  return *states.back();
+}
 
 void DFSSearcher::update(ExecutionState *current,
                          const std::vector<ExecutionState *> &addedStates,
@@ -200,9 +291,8 @@ void DFSSearcher::update(ExecutionState *current,
 ExecutionState &BFSSearcher::selectState() {
 	/** ValueSearch - Usage Example Start */
 	std::map<std::string, double> dbl_map;
-	std::map<std::string, std::string> str_map;
 	int is_debug = 1;
-	states.front()->extractStateMaps(dbl_map,str_map,is_debug);
+	states.front()->extractStateMaps(dbl_map,is_debug);
 	/** ValueSearch - Usage Example End */  
   return *states.front();
 }

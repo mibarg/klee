@@ -60,8 +60,11 @@ namespace klee {
   extern RNG theRNG;
 }
 
+//-----------------STATIC MEMBERS definition:
 std::string SMARTSearcher::outfilePath ;
 std::string SMARTWeightedSearcher::weightsFile = "weights.json";
+std::string SMARTWeightedSearcher::outfilePath;
+
 Searcher::~Searcher() {
 }
 ExecutionState &SMARTSearcher::selectState() {
@@ -99,6 +102,7 @@ void SMARTSearcher::setOutputFileName(){
   }
 
 }
+
 void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionState *> &addedStates,const std::vector<ExecutionState *> &removedStates) {
 
   states.insert(states.end(),addedStates.begin(), addedStates.end());
@@ -145,6 +149,40 @@ void SMARTSearcher::update(ExecutionState *current,const std::vector<ExecutionSt
     
     assert(ok && "invalid state removed");
   }
+}
+
+
+void SMARTWeightedSearcher::setOutputFileName(){
+    char cwd[1024];
+    std::string prefix = "klee-out-";
+    int counter = 0;
+    bool shouldUseTime = false;unsigned char isFolder = 0x4;
+    //Failed getting pwd, write to a file with a name of time in miliseconds:
+    if (!(getcwd(cwd, sizeof(cwd)) != NULL)) {     shouldUseTime = true;  }
+        //write to states#.log with # current run according to the latest klee-out-#/
+    else {
+        std::string pwd(cwd);
+        DIR *dir;
+        struct dirent *ent;
+        dir = opendir(pwd.c_str());
+        if (dir != NULL) {
+            while ((ent = readdir(dir)) != NULL) {
+                auto res = std::mismatch(prefix.begin(), prefix.end(), std::string(ent->d_name).begin());
+                if (ent->d_type == isFolder && res.first == prefix.end()) {
+                    counter++;
+                }
+            }
+            closedir(dir);
+            SMARTSearcher::outfilePath = pwd + "/" + std::to_string(counter - 1) + ".log";
+        } else {    /* could not open directory */
+            shouldUseTime = false;
+        }
+    }
+    if (shouldUseTime){
+        milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+        SMARTSearcher::outfilePath = std::to_string(ms.count())+".log";
+    }
+
 }
 
 SMARTWeightedSearcher::SMARTWeightedSearcher(): states(new DiscretePDF<ExecutionState*>()){readWeights();}
@@ -238,13 +276,34 @@ double SMARTWeightedSearcher::getWeight(ExecutionState* state){
 }
 
 void SMARTWeightedSearcher::update(ExecutionState *current,const std::vector<ExecutionState *> &addedStates,const std::vector<ExecutionState *> &removedStates){
-  if (current && std::find(removedStates.begin(), removedStates.end(), current) == removedStates.end()){
-    states->update(current, getWeight(current));
+    if (current && std::find(removedStates.begin(), removedStates.end(), current) == removedStates.end()){
+        states->update(current, getWeight(current));
+    }
+    //add states to data structure:
+    std::ofstream file;
+    for (std::vector<ExecutionState *>::const_iterator it = addedStates.begin(),ie = addedStates.end();it != ie; ++it) {
+    ExecutionState *state = *it;
+    states->insert(state, getWeight(state));
+      //write to file:
+      std::map<std::string, double> dbl_map;
+      state->extractStateMaps(dbl_map, false);
+      //Write headers:
+      if (firstInsert == true){
+          SMARTWeightedSearcher::setOutputFileName();
+          std::cout<<"Writing states to file: "<< outfilePath<< std::endl;
+          file.open(outfilePath, std::fstream::app);
+          for(auto tup:dbl_map) {file<<tup.first << ",";}
+          firstInsert  = false;
+          file<<endl;
+      } else{ file.open(outfilePath, std::fstream::app);}
+      for(auto tup:dbl_map) {
+          file<<tup.second << ",";
+
+      }
+      file<<std::endl;
   }
-  for (std::vector<ExecutionState *>::const_iterator it = addedStates.begin(),ie = addedStates.end();it != ie; ++it) {
-    ExecutionState *es = *it;
-    states->insert(es, getWeight(es));
-  }
+    file.close();
+    //Remover states:
   for (std::vector<ExecutionState *>::const_iterator it = removedStates.begin(),
                ie = removedStates.end();
        it != ie; ++it) {

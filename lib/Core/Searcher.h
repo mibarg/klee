@@ -83,12 +83,11 @@ namespace klee {
   };
 
   class SMARTSearcher : public Searcher {
-    std::vector<ExecutionState*> states;
-  protected:
-    static void setOutputFileName();
+      std::vector<ExecutionState*> states;
+      static void setOutputFileName();
+      bool firstInsert = true;
   public:
       static std::string outfilePath;
-      bool firstInsert = true;
       ExecutionState &selectState();
       void update(ExecutionState *current,const std::vector<ExecutionState *> &addedStates,const std::vector<ExecutionState *> &removedStates);
       bool empty() { return states.empty(); }
@@ -96,19 +95,22 @@ namespace klee {
   };
 
 class SMARTWeightedSearcher : public Searcher {
+    DiscretePDF<ExecutionState*>* states;
+    std::map <std::string, double> weights;
+    double getWeight(ExecutionState*);
+    static std::string weightsFile;
+    void readWeights();
+    static void setOutputFileName();
+    bool firstInsert = true;
 
-        DiscretePDF<ExecutionState*>* states;
-        std::map <std::string, double> weights;
-        double getWeight(ExecutionState*);
-        static std::string weightsFile;
-        void readWeights();
-    public:
-        SMARTWeightedSearcher();
-        ~SMARTWeightedSearcher();
-        ExecutionState &selectState();
-        void update(ExecutionState *current,const std::vector<ExecutionState *> &addedStates,const std::vector<ExecutionState *> &removedStates);
-        bool empty();
-        void printName(llvm::raw_ostream &os) {os << "SMARTWeightedSearcher\n";};
+public:
+    static std::string outfilePath;
+    SMARTWeightedSearcher();
+    ~SMARTWeightedSearcher();
+    ExecutionState &selectState();
+    void update(ExecutionState *current,const std::vector<ExecutionState *> &addedStates,const std::vector<ExecutionState *> &removedStates);
+    bool empty();
+    void printName(llvm::raw_ostream &os) {os << "SMARTWeightedSearcher\n";};
 };
 
 

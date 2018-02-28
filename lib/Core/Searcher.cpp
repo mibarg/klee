@@ -45,6 +45,10 @@
 #include <chrono>
 #include <cassert>
 #include <climits>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <stdlib.h>
+#include <arpa/inet.h>
 
 using namespace klee;
 using namespace llvm;
@@ -64,9 +68,12 @@ namespace klee {
 std::string SMARTSearcher::outfilePath ;
 std::string SMARTWeightedSearcher::weightsFile = "weights.json";
 std::string SMARTWeightedSearcher::outfilePath;
+unsigned int NeuralNetSearcher::destPort = 2805;
 
 Searcher::~Searcher() {
 }
+
+//-----------------SMARTSearcher:-----------------//
 ExecutionState &SMARTSearcher::selectState() {
   return *states[theRNG.getInt32()%states.size()];
 }
@@ -185,6 +192,7 @@ void SMARTWeightedSearcher::setOutputFileName(){
 
 }
 
+//-----------------SMARTWeightedSearcher:-----------------//
 SMARTWeightedSearcher::SMARTWeightedSearcher(): states(new DiscretePDF<ExecutionState*>()){readWeights();}
 
 SMARTWeightedSearcher::~SMARTWeightedSearcher(){ delete states;};
@@ -310,6 +318,65 @@ void SMARTWeightedSearcher::update(ExecutionState *current,const std::vector<Exe
     states->remove(*it);
   }
 }
+
+//-----------------NeuralNetSearcher:-----------------//
+NeuralNetSearcher::NeuralNetSearcher(): states(new DiscretePDF<ExecutionState*>()){openSocket();}
+
+NeuralNetSearcher::~NeuralNetSearcher(){ delete states; close(socketFd);};
+
+ExecutionState& NeuralNetSearcher::selectState(){return *states->choose(theRNG.getDoubleL());};
+
+bool NeuralNetSearcher::empty() { return states->empty(); };
+
+void NeuralNetSearcher::openSocket(){
+    struct sockaddr_in serv_addr;
+    if ((socketFd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        std::cout<<"Error connecting to neural network"<<std::endl;
+        return;
+    }
+    memset(&serv_addr, '0', sizeof(serv_addr));
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(NeuralNetSearcher::destPort);
+    if(inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr)<=0)
+    {
+        std::cout<<"Error connecting to neural network"<<std::endl;
+        return;
+    }
+    if (connect(socketFd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    {
+        std::cout<<"Error connecting to neural network"<<std::endl;
+        return;
+    }
+    socketOpen = true;
+}
+
+void NeuralNetSearcher::update(ExecutionState *current, const std::vector<ExecutionState *> &addedStates,const std::vector<ExecutionState *> &removedStates) {
+    if (current && std::find(removedStates.begin(), removedStates.end(), current) == removedStates.end()){
+        states->update(current, getWeight(current));
+    }
+    //add states to data structure:
+    for (std::vector<ExecutionState *>::const_iterator it = addedStates.begin(),ie = addedStates.end();it != ie; ++it) {
+        ExecutionState *state = *it;
+        states->insert(state, getWeight(state));
+    }
+    //Remover states:
+    for (std::vector<ExecutionState *>::const_iterator it = removedStates.begin(),
+                 ie = removedStates.end();
+         it != ie; ++it) {
+        states->remove(*it);
+    }
+}
+
+double NeuralNetSearcher::getWeight(ExecutionState * state) {
+    //TODO!!!
+    if (!socketOpen){
+        return 1;
+    }
+    return 1;
+}
+
+//-----------------End of compilation project-----------------//
 
 ExecutionState &DFSSearcher::selectState() {
   return *states.back();

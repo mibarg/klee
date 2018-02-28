@@ -113,6 +113,21 @@ public:
     void printName(llvm::raw_ostream &os) {os << "SMARTWeightedSearcher\n";};
 };
 
+class NeuralNetSearcher : public Searcher {
+    DiscretePDF<ExecutionState*>* states;
+    double getWeight(ExecutionState*);
+    void openSocket();
+    static unsigned int destPort;
+    int socketFd;
+    bool socketOpen = false;
+public:
+    NeuralNetSearcher();
+    ~NeuralNetSearcher();
+    ExecutionState &selectState();
+    void update(ExecutionState *current,const std::vector<ExecutionState *> &addedStates,const std::vector<ExecutionState *> &removedStates);
+    bool empty();
+    void printName(llvm::raw_ostream &os) {os << "NeuralNetSearcher\n";};
+};
 
     class DFSSearcher : public Searcher {
     std::vector<ExecutionState*> states;

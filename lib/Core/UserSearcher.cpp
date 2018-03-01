@@ -21,7 +21,7 @@ using namespace klee;
 namespace {
   cl::list<Searcher::CoreSearchType>
   CoreSearch("search", cl::desc("Specify the search heuristic (default=random-path interleaved with nurs:covnew)"),
-	     cl::values(clEnumValN(Searcher::SMART_WEIGHT, "smart-weighted", "use smart weighted Search (SMART_WEIGHT)"),
+	     cl::values(clEnumValN(Searcher::SMART_WEIGHT, "smart_weighted", "use smart weighted Search (SMART_WEIGHT)"),
                  clEnumValN(Searcher::SMART, "smart", "use smart Search (SMART)"),
 		        clEnumValN(Searcher::DFS, "dfs", "use Depth First Search (DFS)"),
 			clEnumValN(Searcher::BFS, "bfs", "use Breadth First Search (BFS), where scheduling decisions are taken at the level of (2-way) forks"),

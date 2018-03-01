@@ -51,7 +51,7 @@ def parse_args(argv=None):
 
     # klee
     parser.add_argument('-kd', "--klee-dir", default='', help="KLEE directory")
-    parser.add_argument('-ks', "--klee-searcher", default='weighted_searcher', help="KLEE searcher name")
+    parser.add_argument('-ks', "--klee-searcher", default='smart_weighted', help="KLEE searcher name")
     parser.add_argument('-ki', "--klee-input", default='', help="KLEE input file")
     parser.add_argument('-ka', "--klee-args", default='', help="KLEE args")
 
@@ -61,7 +61,7 @@ def parse_args(argv=None):
     parser.add_argument('-nr', "--num-runs", default=2, type=int, help="Number of KLEE sessions to run")
     parser.add_argument('-si', "--save-interval", default=1, type=int, help="Save data interval (of KLEE sessions)")
     
-    parser.add_argument('-on', "--output-name", default='weights_to_goal', help="Output filename")
+    parser.add_argument('-on', "--output-name", default='weights_to_goal.pckl', help="Output filename")
     parser.add_argument('-s', "--silent", default=False, action='store_true', help="No KLEE output logs")
 
     # examples
@@ -80,13 +80,14 @@ def run_klee_session(args):
     Run a KLEE session
     """
 
-    cmnd = '%s\klee %s --search=%s %s' % (args.klee_dir, args.klee_input, args.klee_searcher, args.klee_args)
+    cmnd = '%s/klee --search=%s %s %s' % (args.klee_dir, args.klee_searcher, args.klee_args, args.klee_input)
 
     try:
         if args.silent:
-            print('Running klee session silently')
+            print('Running silent klee session with cmnd: %s' % cmnd)
             proc = subprocess.Popen(cmnd, shell=True, stdout=subprocess.PIPE)
         else:
+            print('Running noisy klee session with cmnd: %s' % cmnd)
             proc = subprocess.Popen(cmnd, shell=True)
         # FIXME choose
         proc.communicate() # or wait
@@ -267,7 +268,7 @@ def main():
             data.to_pickle(args.output_name)
 
         # break condition
-        if cntr >= args.num_runs:
+        if cntr >= (args.num_runs - 1):
             data.to_pickle(args.output_name)
             break
         else:

@@ -1,0 +1,113 @@
+
+# setup a work dir
+mkdir deps
+cd deps
+
+# python-pip
+sudo apt-get install software-properties-common
+sudo apt-add-repository universe
+sudo apt-get update
+sudo apt-get install python-pip
+
+# LLVM dependencies
+sudo apt-get install build-essential curl libcap-dev git cmake libncurses5-dev python-minimal python-pip unzip
+
+# gcc/g++ 4.8
+sudo add-apt-repository ppa:ubuntu-toolchain-r/test
+sudo apt-get update; sudo apt-get install gcc-4.8 g++-4.8
+sudo update-alternatives --remove-all gcc 
+sudo update-alternatives --remove-all g++
+sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 20
+sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 20
+sudo update-alternatives --config gcc
+sudo update-alternatives --config g++
+gcc --version
+# expected: gcc (Ubuntu 4.8.1-2ubuntu1~13.04) 4.8.1
+
+# manually install two LLVM dependencies
+wget http://mirrors.kernel.org/ubuntu/pool/main/i/isl/libisl10_0.12.2-1_amd64.deb
+wget http://mirrors.kernel.org/ubuntu/pool/universe/libj/libjsoncpp/libjsoncpp0_0.6.0~rc2-3ubuntu1_amd64.deb
+sudo dpkg -i libisl10_0.12.2-1_amd64.deb
+sudo apt-get install -f
+sudo dpkg -i libjsoncpp0_0.6.0~rc2-3ubuntu1_amd64.deb
+sudo apt-get install -f
+
+# LLVM 3.4
+sudo echo "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.4 main" >> /etc/apt/sources.list
+sudo echo "deb-src http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.4 main" >> /etc/apt/sources.list
+# /etc/security/limits.conf allow all repos in /etc/apt/sources.list
+wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -  
+sudo apt-get update  
+sudo apt-get install clang-3.4 llvm-3.4 llvm-3.4-dev llvm-3.4-tools
+PATH=$PATH:/usr/bin/llvm-config-3.4
+
+
+# STP dependencies
+sudo apt-get install cmake bison flex libboost-all-dev python perl zlib1g-dev
+
+# STP
+git clone https://github.com/stp/minisat.git
+cd minisat ; mkdir build ; cd build ; cmake -DSTATIC_BINARIES=ON -DCMAKE_INSTALL_PREFIX=/usr/local/ ../
+sudo make install ; cd ../../
+git clone https://github.com/stp/stp.git
+cd stp ; git checkout tags/2.1.2 ; mkdir build ; cd build ; cmake -DBUILD_SHARED_LIBS:BOOL=OFF -DENABLE_PYTHON_INTERFACE:BOOL=OFF ..
+make ; sudo make install ; cd ../../ ; ulimit -s unlimited
+echo "mibarg   soft   core   unlimited" >> /etc/security/limits.conf
+echo "mibarg   hard   core   unlimited" >> /etc/security/limits.conf
+
+
+# Build uclibc and the POSIX environment model
+git clone https://github.com/klee/klee-uclibc.git  
+cd klee-uclibc  ; ./configure --make-llvm-lib --with-llvm-config /usr/bin/llvm-config-3.4
+make -j2  ; cd ..
+
+# Get Google test sources
+curl -OL https://github.com/google/googletest/archive/release-1.7.0.zip
+unzip release-1.7.0.zip
+
+# llvm-lit
+sudo pip install lit
+
+# tcmalloc
+sudo apt-get install libtcmalloc-minimal4 libgoogle-perftools-dev
+
+# get KLEE source
+cd ..
+mkdir source ; cd source ; git clone https://github.com/mibarg/klee.git; cd ..
+mkdir klee_build_dir ; cd klee_build_dir
+cmake   -DENABLE_SOLVER_STP=ON   -DENABLE_POSIX_RUNTIME=ON   -DENABLE_KLEE_UCLIBC=ON   -DKLEE_UCLIBC_PATH=~/deps/klee-uclibc   -DGTEST_SRC_DIR=~/deps/googletest-release-1.7.0   -DENABLE_SYSTEM_TESTS=ON -DENABLE_TCMALLOC=ON  -DENABLE_UNIT_TESTS=ON -DLLVM_CONFIG_BINARY=/usr/bin/llvm-config-3.4  ~/source/klee
+###### not needed? ###########CXXFLAGS="-g -O0" CFLAGS="-g -O0" ~/source/klee/configure --with-llvm=/usr/bin/llvm-config-3.4 --with-stp=~/deps/stp --with-uclibc=~/deps/klee-uclibc --enable-posix-runtime --with-runtime=Debug+Asserts
+make -j
+export KLEE=~/klee_build_dir/bin/
+
+# install Anaconda with Python3
+# download and install Anaconda
+sudo vi ~/.bashrc
+alias python3=/home/USERNAME/anaconda3/bin/python
+wq!
+source ~/.bashrc
+
+# RUN KLEE #
+mkdir runtime
+cd ~/source/klee/maze ; clang-3.4 -I ../include/ -g -c -o kleemaze0.o -emit-llvm KleeMaze0.c ; cd ~/
+cd ~/runtime ; $KLEE/klee --warnings-only-to-file -max-time=40 --search=smart ~/source/klee/maze/kleemaze0.o ; cd ~/
+python3 ~/source/klee/learn/learn_weights.py -s -kd $KLEE -ks smart -ki ~/source/klee/maze/kleemaze0.o
+
+
+### MY RUN KLEE ###
+###### not needed? ###########clang-3.4 -I ../klee/include -emit-llvm -c -g regexp.c
+###### not needed? ###########$KLEE/klee --only-output-states-covering-new -write-cov -write-cvcs -write-kqueries -write-paths -write-smt2s -write-sym-paths -write-test-info regexp.bc
+
+
+### TAMIS ###
+# run KLEE
+#Check for errors found:
+ls -1 klee-last/ |grep -A2 -B2 err
+#run KLee With time constraint :
+$KLEE/klee --warnings-only-to-file -max-time=40 --search=smart kleemaze0.o 
+#compile klee from klee directory:
+cd ../klee_build_dir/ && make -j && cd ../klee
+#when compiling from nothing:  
+CXXFLAGS="-D_GLIBCXX_USE_CXX11_ABI=0" cmake -DENABLE_SOLVER_STP=ON -DENABLE_POSIX_RUNTIME=ON -DENABLE_KLEE_UCLIBC=ON -DKLEE_UCLIBC_PATH=/home/liav/work/klee-uclibc -DGTEST_SRC_DIR=/home/liav/work/googletest-release-1.7.0 -DENABLE_SYSTEM_TESTS=ON -DENABLE_TCMALLOC=ON  -DENABLE_UNIT_TESTS=ON -DLLVM_CONFIG_BINARY=/usr/bin/llvm-config  /home/liav/work/klee
+
+

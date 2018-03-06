@@ -177,7 +177,7 @@ def getRow(record, stats, pr):
     return row
 
 
-def main():
+def main(klee_dir):
     # function for sanitizing arguments
     def isPositiveInt(value):
         try:
@@ -190,50 +190,11 @@ def main():
                 'positive integer expected: {0}'.format(value))
         return value
 
-    parser = argparse.ArgumentParser(
-        description='output statistics logged by klee',
-        epilog='LEGEND\n' + tabulate(Legend),
-        formatter_class=argparse.RawDescriptionHelpFormatter)
-
-    parser.add_argument('dir', nargs='+', help='klee output directory')
-
-    parser.add_argument('--precision',
-                        dest='precision', type=isPositiveInt,
-                        default=2, metavar='n',
-                        help='Floating point numbers display precision '
-                             '(default: 2).')
-
-    # arguments for sorting
-    parser.add_argument('--sort-by', dest='sortBy', metavar='header',
-                        help='Key value to sort by. Must be chosen from '
-                             'the headers of the table outputted  (e.g., '
-                             '--sort-by=Instrs).')
-    parser.add_argument('--ascending',
-                        dest='ascending', action='store_true',
-                        help='Sort in ascending order (default: False).')
-
-    # arguments for comparing
-    parser.add_argument('--compare-by', dest='compBy', metavar='header',
-                        help='Key value on which to compare runs to the '
-                             'reference one (which is the first one). Must be '
-                             'chosen from the headers of the table oputputted. '
-                             'e.g., --compare-by=Instrs shows how each run '
-                             'compares to the reference run after executing the '
-                             'same number of instructions as the reference run. '
-                             "If a run hasn't executed as many instructions as "
-                             'the reference one, we simply print the statistics '
-                             'at the end of that run.')
-    parser.add_argument('--compare-at', dest='compAt', metavar='value',
-                        help='Value to compare the runs at. Can be special '
-                             "value 'last' to compare at the last point which "
-                             'makes sense. Use in conjunction with --compare-by.')
-
-    args = parser.parse_args()
 
     # get print controls
     pr = 'all'
 
-    dirs = getKleeOutDirs(args.dir)
+    dirs = getKleeOutDirs(klee_dir)
     if len(dirs) == 0:
         print('no klee output dir found', file=sys.stderr)
         exit(1)
@@ -250,17 +211,17 @@ def main():
     rawLabels = ('Instrs', '', '', '', '', '', '', 'Queries',
                  '', '', 'Time', 'ICov', '', '', '', '', '', '')
 
-    if args.compBy:
-        # index in the record of run.stats
-        compIndex = getKeyIndex(args.compBy, rawLabels)
-        if args.compAt:
-            if args.compAt == 'last':
-                # [records][last-record][compare-by-index]
-                refValue = min(map(lambda r: r[1][-1][compIndex], data))
-            else:
-                refValue = args.compAt
-        else:
-            refValue = data[0][1][-1][compIndex]
+    # if args.compBy:
+    #     # index in the record of run.stats
+    #     compIndex = getKeyIndex(args.compBy, rawLabels)
+    #     if args.compAt:
+    #         if args.compAt == 'last':
+    #             # [records][last-record][compare-by-index]
+    #             refValue = min(map(lambda r: r[1][-1][compIndex], data))
+    #         else:
+    #             refValue = args.compAt
+    #     else:
+    #         refValue = data[0][1][-1][compIndex]
 
     # build the main body of the table
     table = []
@@ -268,18 +229,18 @@ def main():
     totStats = []  # accumulated stats
     for path, records in data:
         row = [path]
-        if args.compBy:
-            matchIndex = getMatchedRecordIndex(
-                records, itemgetter(compIndex), refValue)
-            stats = aggregateRecords(LazyEvalList(records[:matchIndex + 1]))
-            totStats.append(stats)
-            row.extend(getRow(records[matchIndex], stats, pr))
-            totRecords.append(records[matchIndex])
-        else:
-            stats = aggregateRecords(records)
-            totStats.append(stats)
-            row.extend(getRow(records[-1], stats, pr))
-            totRecords.append(records[-1])
+        # if args.compBy:
+        #     matchIndex = getMatchedRecordIndex(
+        #         records, itemgetter(compIndex), refValue)
+        #     stats = aggregateRecords(LazyEvalList(records[:matchIndex + 1]))
+        #     totStats.append(stats)
+        #     row.extend(getRow(records[matchIndex], stats, pr))
+        #     totRecords.append(records[matchIndex])
+        # else:
+        stats = aggregateRecords(records)
+        totStats.append(stats)
+        row.extend(getRow(records[-1], stats, pr))
+        totRecords.append(records[-1])
         table.append(row)
     # calculate the total
     totRecords = [sum(e) for e in zip(*totRecords)]
@@ -287,9 +248,9 @@ def main():
     totalRow = ['Total ({0})'.format(len(table))]
     totalRow.extend(getRow(totRecords, totStats, pr))
 
-    if args.sortBy:
-        table = sorted(table, key=itemgetter(getKeyIndex(args.sortBy, labels)),
-                       reverse=(not args.ascending))
+    # if args.sortBy:
+    #     table = sorted(table, key=itemgetter(getKeyIndex(args.sortBy, labels)),
+    #                    reverse=(not args.ascending))
 
     if len(data) > 1:
         table.append(totalRow)
@@ -298,7 +259,7 @@ def main():
     stream = tabulate(
         table, headers='firstrow',
         tablefmt=KleeTable,
-        floatfmt='.{p}f'.format(p=args.precision),
+        floatfmt='.{p}f'.format(p=2),
         numalign='right', stralign='center')
     # add a line separator before the total line
     if len(data) > 1:
@@ -309,4 +270,4 @@ def main():
     return table
 
 if __name__ == '__main__':
-    main()
+    main('klee-last')

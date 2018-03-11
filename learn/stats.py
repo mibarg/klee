@@ -266,7 +266,6 @@ def main(klee_dir):
         stream = stream.splitlines()
         stream.insert(-2, stream[-1])
         stream = '\n'.join(stream)
-    print(table)
     return table
 
 if __name__ == '__main__':

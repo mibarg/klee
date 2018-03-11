@@ -91,8 +91,7 @@ source ~/.bashrc
 mkdir runtime
 cd ~/source/klee/maze ; clang-3.4 -I ../include/ -g -c -o kleemaze0.o -emit-llvm KleeMaze0.c ; cd ~/
 cd ~/runtime ; $KLEE/klee --warnings-only-to-file -max-time=40 --search=smart ~/source/klee/maze/kleemaze0.o ; cd ~/
-python3 ~/source/klee/learn/learn_weights.py -kd $KLEE -ki ~/source/klee/maze/kleemaze0.o -ka "--warnings-only-to-file -max-time=40" -nr 1 -s
-
+python3 ~/source/klee/learn/learn_weights.py -kd $KLEE -ki ~/source/klee/maze/kleemaze0.o -ka "--warnings-only-to-file -max-time=40" -nr 1 -s -g NumQueries
 
 
 ### MY RUN KLEE ###

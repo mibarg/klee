@@ -409,6 +409,7 @@ void ExecutionState::extractStateMaps(std::map<std::string, double> &dbl_map, bo
     // Constraints Features
     // get constraints string representation
     const char * constr = get_constraints();
+    double constr_len = (double)strlen(constr) + 0.001; // to avoid division by 0 
 
     // Propositional SAT features
 
@@ -420,43 +421,43 @@ void ExecutionState::extractStateMaps(std::map<std::string, double> &dbl_map, bo
     int num_bool = StringUtils::count_occurences(constr, (char *)"w"); //num of boolean varialbes to be assigned
     int num_theory = StringUtils::count_occurences(constr, (char *)"("); //# of theory athoms
     int clause_to_vars = (num_asserted + num_ands + 2 * (num_eq - 2) + num_xor) / (num_bool + num_theory);
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ANDS, (double) num_ands ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ASSERTED, (double) num_asserted ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_EQUAL, (double) num_eq ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_XOR, (double) num_xor ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_BOOL, (double) num_bool ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_THEORY, (double) num_theory ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ANDS, (double) num_ands / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ASSERTED, (double) num_asserted / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_EQUAL, (double) num_eq / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_XOR, (double) num_xor / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_BOOL, (double) num_bool / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_THEORY, (double) num_theory / constr_len ));
     dbl_map.insert(std::pair<std::string, double>(SAT_NUM_CLAUSES_VARS, (double) clause_to_vars ));
     dbl_map.insert(std::pair<std::string, double>(SAT_NUM_VARS_CLAUSES, (double) (clause_to_vars == 0) ? 1 : (1 / clause_to_vars) ));
     // original
     // arithmetic
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SUB, (double) StringUtils::count_occurences(constr, (char *)"Sub") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_MUL, (double) StringUtils::count_occurences(constr, (char *)"Mul") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_UDIV, (double) StringUtils::count_occurences(constr, (char *)"UDiv") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SDIV, (double) StringUtils::count_occurences(constr, (char *)"SDiv") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_UREM, (double) StringUtils::count_occurences(constr, (char *)"URem") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SUB, (double) StringUtils::count_occurences(constr, (char *)"Sub")   / constr_len));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_MUL, (double) StringUtils::count_occurences(constr, (char *)"Mul")   / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_UDIV, (double) StringUtils::count_occurences(constr, (char *)"UDiv") / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SDIV, (double) StringUtils::count_occurences(constr, (char *)"SDiv") / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_UREM, (double) StringUtils::count_occurences(constr, (char *)"URem") / constr_len ));
     // bitwise
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_OR, (double) StringUtils::count_occurences(constr, (char *)"Or") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SHL, (double) StringUtils::count_occurences(constr, (char *)"Shl") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_LSHR, (double) StringUtils::count_occurences(constr, (char *)"LShr") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ASHR, (double) StringUtils::count_occurences(constr, (char *)"AShr") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_OR, (double) StringUtils::count_occurences(constr, (char *)"Or") / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SHL, (double) StringUtils::count_occurences(constr, (char *)"Shl") / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_LSHR, (double) StringUtils::count_occurences(constr, (char *)"LShr") / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ASHR, (double) StringUtils::count_occurences(constr, (char *)"AShr") / constr_len ));
     // Bitvector Manipulation
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_EXTRACT, (double) StringUtils::count_occurences(constr, (char *)"Extract") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_CONCAT, (double) StringUtils::count_occurences(constr, (char *)"Concat") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ZEXT, (double) StringUtils::count_occurences(constr, (char *)"ZExt") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SEXT, (double) StringUtils::count_occurences(constr, (char *)"SExt") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_EXTRACT, (double) StringUtils::count_occurences(constr, (char *)"Extract") / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_CONCAT, (double) StringUtils::count_occurences(constr, (char *)"Concat") / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_ZEXT, (double) StringUtils::count_occurences(constr, (char *)"ZExt") / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_SEXT, (double) StringUtils::count_occurences(constr, (char *)"SExt") / constr_len ));
 
     // Macros
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_LSB, (double) StringUtils::count_occurences(constr, (char *)"ReadLSB") ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_MSB, (double) StringUtils::count_occurences(constr, (char *)"ReadMSB") ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_LSB, (double) StringUtils::count_occurences(constr, (char *)"ReadLSB") / constr_len ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_MSB, (double) StringUtils::count_occurences(constr, (char *)"ReadMSB") / constr_len ));
 
     // Propositional SAT features
     double clause_depth [3];
     StringUtils::consecutive_occurences_stats(constr, '(', ')', clause_depth); // {std, avg, max}
-    dbl_map.insert(std::pair<std::string, double>(SAT_CLS_STD, clause_depth[0] ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_CLS_AVG, clause_depth[1] ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_CLS_MAX, clause_depth[2] ));
-    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_CAPS, (double) StringUtils::count_capitals(constr) ));
+    dbl_map.insert(std::pair<std::string, double>(SAT_CLS_STD, clause_depth[0] / constr_len ) );
+    dbl_map.insert(std::pair<std::string, double>(SAT_CLS_AVG, clause_depth[1] / constr_len ) );
+    dbl_map.insert(std::pair<std::string, double>(SAT_CLS_MAX, clause_depth[2] / constr_len ) );
+    dbl_map.insert(std::pair<std::string, double>(SAT_NUM_CAPS, (double) StringUtils::count_capitals(constr) / constr_len ) );
     // WeightedRandomSearcher features
     dbl_map.insert(std::pair<std::string, double>(WEIGHT_DEPTH, get_random_searcher_weights("Depth")));
     dbl_map.insert(std::pair<std::string, double>(WEIGHT_INST_CNT, get_random_searcher_weights("InstCount")));

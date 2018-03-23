@@ -105,7 +105,7 @@ void SMARTSearcher::setOutputFileName(){
               }
           }
           closedir(dir);
-          SMARTSearcher::outfilePath = pwd + "/" + std::to_string(counter - 1) + ".log";
+          SMARTSearcher::outfilePath = pwd + "/klee-last/" + "out.log";
       } else {    /* could not open directory */
           shouldUseTime = false;
       }

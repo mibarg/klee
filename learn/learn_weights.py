@@ -2,16 +2,20 @@
 import subprocess
 import argparse
 from os import walk
-from os.path import dirname, join
+from os.path import dirname, join, abspath
 import json
 from random import random
 import pandas as pd
 from datetime import datetime
 import builtins
+from scipy.optimize import basinhopping, minimize
+from stats import main as get_stats
 
 EPS = 0.0001
 CLR = '\033[1;34m'  # Light Blue, see: https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
 NCLR = '\033[0m' # No Color
+LOGFILE = None
+F_CACHE = {}
 
 features = [
     "instr_pc_getNumOperands", "instr_pc_getOpcode", "instr_pc_use_empty", "instr_prevpc_getNumOperands",
@@ -24,7 +28,6 @@ features = [
     "weights_InstCount", "weights_CPInstCount", "weights_QueryCost", "weights_CoveringNew",
     "weights_MinDistToUncovered", "weights_forkDisabled"]
 
-    
 
 def print(*args, **kwargs):
     """
@@ -38,6 +41,11 @@ def print(*args, **kwargs):
         nargs = tuple([frst_arg, list(args[1:])])
     else:
         nargs = (frst_arg,)
+    
+    # log to file
+    if LOGFILE is not None:
+        LOGFILE.write('%s\n' % ' '.join(nargs))
+    
     return builtins.print(*nargs, **kwargs)
 
     
@@ -56,19 +64,19 @@ def parse_args(argv=None):
     parser.add_argument('-ka', "--klee-args", default='', help="KLEE args")
 
     # goal
-    parser.add_argument('-g', "--goal", choices=('CoveredInstructions', 'NumBugs'), default='CoveredInstructions', help="KLEE stat or NumBugs to maximize")
+    parser.add_argument('-g', "--goal", default='CoveredInstructions', help="KLEE stat or NumBugs to maximize")
     parser.add_argument('-w', "--weights", default='weights.json', help="Weights for KLEE searcher, in JSON format")
     parser.add_argument('-nr', "--num-runs", default=2, type=int, help="Number of KLEE sessions to run")
     parser.add_argument('-si', "--save-interval", default=1, type=int, help="Save data interval (of KLEE sessions)")
     
-    parser.add_argument('-on', "--output-name", default='weights_to_goal.pckl', help="Output filename")
+    # output
+    parser.add_argument('-on', "--output-name", default='oracle_cache.pckl', help="Output filename")
     parser.add_argument('-s', "--silent", default=False, action='store_true', help="No KLEE output logs")
-
-    # examples
-    #parser.add_argument('-l', "--logging-level", choices=('NOTSET', 'INFO', 'DEBUG', 'ERROR'), default='INFO', help="Level of logging messages to show")
-    #parser.add_argument('-sp', "--port", default=7070, type=int, help="Socket server port")
-    #parser.add_argument('-r', "--restore", default=False, action='store_true', help="Restore network parameters from last save, if they exist")
-
+    parser.add_argument('-ln', "--log-name", default='log.txt', help="Log file")
+    
+    # scipy
+    parser.add_argument('-mm', "--minimizer-method", default=None, help="Kwargs for scipy minimizer")
+    
     if argv is None:
         return parser.parse_args()
     else:
@@ -84,10 +92,10 @@ def run_klee_session(args):
 
     try:
         if args.silent:
-            print('Running silent klee session with cmnd: %s' % cmnd)
-            proc = subprocess.Popen(cmnd, shell=True, stdout=subprocess.PIPE)
+            #print('Running silent klee session with cmnd: %s' % cmnd)
+            proc = subprocess.Popen(cmnd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
-            print('Running noisy klee session with cmnd: %s' % cmnd)
+            #print('Running noisy klee session with cmnd: %s' % cmnd)
             proc = subprocess.Popen(cmnd, shell=True)
         # FIXME choose
         proc.communicate() # or wait
@@ -98,12 +106,17 @@ def run_klee_session(args):
 
 def read_stat(args):
     """
-    Read args.goal from stats file, or count number of .err files if args.goal == 'NumBugs'
+    Read args.goal from stats file
+    Count number of .err files if args.goal == 'NumBugs'
+    Read coverage % if args.goal in ['BCov(%)', 'ICov(%)']
     """
-
+    klee_last_path = join(dirname(abspath(args.klee_input)), 'klee-last')
     if args.goal == 'NumBugs':
         # count .err files
-        return float(len([file for curdir, subdirs, file in walk('klee-last/') if '.err' in file]))
+        return float(len([file for curdir, subdirs, file in walk(klee_last_path) if '.err' in file]))
+    if args.goal in ['BCov(%)', 'ICov(%)']:
+        stats = get_stats([klee_last_path,])
+        return float(stats[1][stats[0].index(args.goal)])
     else:
         # search .stat file
         stats_path = join(dirname(args.klee_input), 'klee-last', 'run.stats')
@@ -120,11 +133,8 @@ def read_stat(args):
                 for line in f: pass
                 clean_line = line.strip().replace("(", "").replace(")", "")
                 values = clean_line.split(",")
-				
-                covered_inst = float(values[cols.index('CoveredInstructions')])
-                uncovered_inst = float(values[cols.index('UncoveredInstructions')])
 
-                return covered_inst / (covered_inst + uncovered_inst + EPS)
+                return float(values[cols.index(args.goal)])
 
         except (ValueError, IndexError, OSError) as e:
             if isinstance(e, (ValueError, IndexError)):
@@ -171,6 +181,27 @@ def update_weights(args, goal_value, type='gradient'):
         if isinstance(e, OSError):
             print('Error on read/write %s: %s' % (weights_path, e))
         return -1
+		
+
+def set_weights(weights, args):
+    """
+    Write weights file
+    """
+    
+    weights_path = join(dirname(args.klee_input), args.weights)
+    try:
+        # save weights
+        with open(weights_path, 'w') as f:
+            f.write(json.dumps(weights))
+
+        return 0
+
+    except (ValueError , OSError) as e:
+        if isinstance(e, ValueError):
+            print('Error while loading/dumping weights to JSON: %s' % e)
+        if isinstance(e, OSError):
+            print('Error on read/write %s: %s' % (weights_path, e))
+        return -1
 
 		
 def get_weights(args):
@@ -200,27 +231,39 @@ def init_weights(args):
     Randomly init a weights file
     """
 
-    weights_path = join(dirname(args.klee_input), args.weights)
-    try:
-        # random weights
-        new_weights = {feat: random() * 2 - 1 for feat in features}
+    # random weights
+    new_weights = {feat: random() * 2 - 1 for feat in features}
 
-        # save new weights
-        with open(weights_path, 'w') as f:
-            f.write(json.dumps(new_weights))
+    # save new weights
+    return set_weights(new_weights, args)
+		
 
-        return 0
+def func(w, args):
+    global F_CACHE
 
-    except (json.JSONDecodeError, OSError) as e:
-        if isinstance(e, json.JSONDecodeError):
-            print('Error while loading/dumping weights to JSON: %s' % e)
-        if isinstance(e, OSError):
-            print('Error on read/write %s: %s' % ( weights_path, e))
-        return -1
+    # check cache
+    if tuple(w) in F_CACHE:
+        return F_CACHE[tuple(w)]
 
+    # set weights JSON
+    weights_dict = {features[i]: w[i] for i in range(len(features))}
+    if set_weights(weights_dict, args) != 0: return None
 
-def main():
-    args = parse_args()
+    # run searcher
+    if run_klee_session(args) != 0:  return None
+
+    # read cov % from stats
+    goal_value = read_stat(args)
+    if goal_value == -1:  return None
+    
+    # update cache
+    F_CACHE[tuple(w)] = goal_value
+    
+    print('f(w) = %.4f' % goal_value)
+    return goal_value
+    
+    
+def learn_by_grad(args):
     print('########## learn_weights start ##########')
     print('Preparing to run %d KLEE sessions' % args.num_runs)
 
@@ -276,8 +319,80 @@ def main():
                 
     print('Data collected: (%d, %d)' % (data.shape[0], data.shape[1]))
     print('########## learn_weights end ##########')
+    
+    
+def define_logger(args):
+    """
+    define logfile, if requested by args
+    """
+    global LOGFILE
+    logfile_path = join(dirname(args.klee_input), args.log_name)
+    LOGFILE = open(logfile_path, 'w')
+    print('Saving logfile to %s' % abspath(logfile_path))
+
+    
+def main():
+    global F_CACHE
+
+    args = parse_args()
+    define_logger(args)
+    
+    print('########## learn_weights start ##########')
+    print('Preparing to run %d KLEE sessions' % args.num_runs)
+    
+    # goal function
+    f = lambda w: -func(w, args)
+    x0 = [random() * 2 - 1 for feat in features]
+    callb = lambda x: print("minimum %.4f, found at %s" % (None if x is None else f(x), x))
+    
+    try:
+        if args.minimizer_method == 'random':
+            best_w, best_v = None, 0
+            for i in range(args.num_runs):
+                rnd_w = [random() * 2 - 1 for feat in features]
+                cur_v = f(rnd_w)
+                if cur_v < best_v:
+                    best_v = cur_v
+                    best_w = rnd_w
+            print('Global minimum found: %.4f' % best_v)
+            ret_w = {features[i]: best_w for i in range(len(features))}
+            set_weights(ret_w, args)
+        else:
+            #ret = basinhopping(f, x0, 
+            #    niter=args.num_runs, 
+            #    minimizer_kwargs={'method': args.minimizer_method}, 
+            #    callback=callb,
+            #    interval=1,
+            #)
+            
+            # Nelder-Mead, Powell, COBYLA print issue
+            ret = minimize(f, x0, 
+                method = args.minimizer_method,
+                callback=callb,
+                options={'disp': True, 'maxiter': args.num_runs, 'rhobeg': 0.5}
+            )
+            
+            # report and save result
+            print('Global minimum found: %.4f' % ret.fun)
+            ret_w = {features[i]: ret.x[i] for i in range(len(features))}
+            set_weights(ret_w, args)
+        
+            # print configuration
+            print(ret)
+    except KeyboardInterrupt:
+        print('Optimization interrupted')
+    
+    # save F_CACHE
+    pd.DataFrame \
+        .from_dict(F_CACHE, orient='index') \
+        .reset_index().set_index(0) \
+        ['index'].apply(pd.Series) \
+        .to_pickle(args.output_name)
+    print('F_CACHE saved to %s' % abspath(args.output_name))
+    
+    print('########## learn_weights end ##########')
+    if hasattr(LOGFILE, 'close'): LOGFILE.close()
 
 
 if __name__ == '__main__':
     main()
-

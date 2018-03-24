@@ -10,6 +10,7 @@ from datetime import datetime
 import builtins
 from scipy.optimize import basinhopping, minimize
 from stats import main as get_stats
+import numpy as np
 
 EPS = 0.0001
 CLR = '\033[1;34m'  # Light Blue, see: https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
@@ -67,6 +68,7 @@ def parse_args(argv=None):
     parser.add_argument('-g', "--goal", default='CoveredInstructions', help="KLEE stat or NumBugs to maximize")
     parser.add_argument('-w', "--weights", default='weights.json', help="Weights for KLEE searcher, in JSON format")
     parser.add_argument('-nr', "--num-runs", default=2, type=int, help="Number of KLEE sessions to run")
+    parser.add_argument('-ni', "--num-inits", default=100, type=int, help="Number of random initial values x0 to try for each optimization session")
     parser.add_argument('-si', "--save-interval", default=1, type=int, help="Save data interval (of KLEE sessions)")
     
     # output
@@ -358,23 +360,38 @@ def main():
             ret_w = {features[i]: best_w for i in range(len(features))}
             set_weights(ret_w, args)
         else:
-            #ret = basinhopping(f, x0, 
-            #    niter=args.num_runs, 
-            #    minimizer_kwargs={'method': args.minimizer_method}, 
-            #    callback=callb,
-            #    interval=1,
-            #)
-            
-            # Nelder-Mead, Powell, COBYLA print issue
-            ret = minimize(f, x0, 
-                method = args.minimizer_method,
-                callback=callb,
-                options={'disp': True, 'maxiter': args.num_runs, 'rhobeg': 0.5}
-            )
-            
+        
+            best_w, best_res = None, 0
+            # 
+            for i in range(args.num_inits):
+                #ret = basinhopping(f, x0, 
+                #    niter=args.num_runs, 
+                #    minimizer_kwargs={'method': args.minimizer_method}, 
+                #    callback=callb,
+                #    interval=1,
+                #)
+                #'initial_simplex': np.vstack([np.eye(len(features)) - EPS * np.ones((len(features), len(features))), -1 * np.ones((1,len(features)))]),
+                
+                # Nelder-Mead, Powell, COBYLA print issue
+                tol=1e-7
+                ret = minimize(f, x0, 
+                    method = args.minimizer_method,
+                    callback=callb,
+                    tol=tol,
+                    options={
+                        'disp': True, 
+                        'maxiter': args.num_runs, 
+                        'xtol': tol, 'ftol': tol, 'xatol': tol, 'fatol': tol}
+                )
+                
+                if ret.fun < best_res:
+                    best_w = ret.x
+                    best_res = ret.fun
+                
             # report and save result
-            print('Global minimum found: %.4f' % ret.fun)
-            ret_w = {features[i]: ret.x[i] for i in range(len(features))}
+            print('Global minimum found: %.4f' % best_res)
+            
+            ret_w = {features[i]: best_w[i] for i in range(len(features))}
             set_weights(ret_w, args)
         
             # print configuration

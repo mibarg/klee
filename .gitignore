@@ -33,3 +33,8 @@ autom4te.cache/
 
 # klee logs
 */klee-out-*
+KleeMaze*.o
+kleemaze*.o
+
+# python
+*/__pycache__/*

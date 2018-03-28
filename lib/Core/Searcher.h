@@ -15,6 +15,8 @@
 #include <set>
 #include <map>
 #include <queue>
+#include <mutex>
+
 
 namespace llvm {
   class BasicBlock;
@@ -69,6 +71,7 @@ namespace klee {
     enum CoreSearchType {
       SMART,
       SMART_WEIGHT,
+      NEURAL_NET,
       DFS,
       BFS,
       RandomState,
@@ -120,6 +123,7 @@ class NeuralNetSearcher : public Searcher {
     static unsigned int destPort;
     int socketFd;
     bool socketOpen = false;
+    static std::mutex m;
 public:
     NeuralNetSearcher();
     ~NeuralNetSearcher();

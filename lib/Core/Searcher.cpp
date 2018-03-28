@@ -49,6 +49,9 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <sys/time.h>
+#include <sstream>
+
 
 using namespace klee;
 using namespace llvm;
@@ -69,6 +72,10 @@ std::string SMARTSearcher::outfilePath ;
 std::string SMARTWeightedSearcher::weightsFile = "weights.json";
 std::string SMARTWeightedSearcher::outfilePath;
 unsigned int NeuralNetSearcher::destPort = 2805;
+std::mutex NeuralNetSearcher::m;
+
+
+
 
 Searcher::~Searcher() {
 }
@@ -223,10 +230,11 @@ void SMARTWeightedSearcher::readWeights(){
       }
       double value = std::stod(line.substr(startDbl + 1, endDbl - startDbl - 1));
       weights.emplace(key, value);
-        std::cout<< "added weight from file"<< std::endl;
+
+        std::cout << key << " : " << value << std::endl;
         lastChar = endDbl;
     }
-
+      std::cout<< "added weight from file"<< std::endl;
   } else{
       weights.emplace(INSTR_PC_OPCODE,1);
       weights.emplace(INSTR_PC_OPERANDS,1);
@@ -330,6 +338,9 @@ bool NeuralNetSearcher::empty() { return states->empty(); };
 
 void NeuralNetSearcher::openSocket(){
     struct sockaddr_in serv_addr;
+    struct timeval timeout;
+    timeout.tv_sec = 1;
+    timeout.tv_usec = 0;
     if ((socketFd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         std::cout<<"Error connecting to neural network"<<std::endl;
@@ -346,9 +357,15 @@ void NeuralNetSearcher::openSocket(){
     if (connect(socketFd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
         std::cout<<"Error connecting to neural network"<<std::endl;
+        std::cout<<"Error connecting to neural network"<<std::endl;
         return;
     }
+    if (setsockopt (socketFd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+        return;
+    if (setsockopt (socketFd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0)
+        return;
     socketOpen = true;
+    std::cout <<"opened socket"<< std::endl;
 }
 
 void NeuralNetSearcher::update(ExecutionState *current, const std::vector<ExecutionState *> &addedStates,const std::vector<ExecutionState *> &removedStates) {
@@ -369,11 +386,53 @@ void NeuralNetSearcher::update(ExecutionState *current, const std::vector<Execut
 }
 
 double NeuralNetSearcher::getWeight(ExecutionState * state) {
-    //TODO!!!
     if (!socketOpen){
-        return 1;
+        return 1.1;
     }
-    return 1;
+    std::stringstream json;
+    std::map<std::string, double> dbl_map;
+    state-> extractStateMaps(dbl_map, false);
+    bool first = true;
+    json << "{";
+    for(auto tup:dbl_map) {
+        if (!first){
+            json <<", ";
+        }
+        json << "\"" << tup.first << "\"" << ": " << tup.second;
+        first = false;
+    }
+    json << "}";
+    //start mutex lock
+//    std::unique_lock<std::mutex> lk(m);
+    int res = write(socketFd, json.str().c_str(),json.str().size());
+    int total = res;
+    while (total< json.str().size() && res >0 ){
+        res = write(socketFd, &(json.str().c_str()[total]),json.str().size() - total);
+        total += res;
+    }
+    if (total<0){
+  //      lk.unlock();
+        socketOpen = false;
+        return 1.1;
+    }
+    char buff[33];
+    res = read(socketFd, buff, 32);
+    total = res;
+    while (res >0 && total < 32){
+        res = read(socketFd, &(buff[total]), 32 - total);
+        total += res;
+    }
+    if (total < 0){
+        socketOpen = false;
+    }
+    if (total<=0){
+    //    lk.unlock();
+        return 1.1;
+    }
+    //lk.unlock();
+    //end lock
+    buff[total] = '\0';
+    return std::stod(std::string(buff));
 }
 
 //-----------------End of compilation project-----------------//

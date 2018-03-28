@@ -63,7 +63,7 @@ def parse_args(argv=None):
     parser.add_argument('-ks', "--klee-searcher", default='smart_weighted', help="KLEE searcher name")
     parser.add_argument('-ki', "--klee-input", default='', help="KLEE input file")
     parser.add_argument('-ka', "--klee-args", default='', help="KLEE args")
-
+    parser.add_argument('-kb', "--klee-args-after", default='', help="KLEE args that need to come after the input file (ki).")
     # goal
     parser.add_argument('-g', "--goal", default='CoveredInstructions', help="KLEE stat or NumBugs to maximize")
     parser.add_argument('-w', "--weights", default='weights.json', help="Weights for KLEE searcher, in JSON format")
@@ -91,7 +91,7 @@ def run_klee_session(args):
     Run a KLEE session
     """
 
-    cmnd = '%s/klee --search=%s %s %s' % (args.klee_dir, args.klee_searcher, args.klee_args, args.klee_input)
+    cmnd = '%s/klee --search=%s %s %s %s' % (args.klee_dir, args.klee_searcher,   args.klee_args, args.klee_input, args.klee_args_after)
 
     try:
         if args.silent:

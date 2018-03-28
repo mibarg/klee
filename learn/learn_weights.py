@@ -25,8 +25,8 @@ features = [
     "sat_paper_vars_clause", "sat_org_num_sub", "sat_org_num_mul", "sat_org_num_udiv", "sat_org_num_sdiv",
     "sat_org_num_urem", "sat_org_num_or", "sat_org_num_shl", "sat_org_num_lshr", "sat_org_num_ashr",
     "sat_org_num_extract", "sat_org_num_concat", "sat_org_num_zext", "sat_org_num_sext", "sat_org_num_lsb",
-    "sat_org_num_msb", "sat_org_cls_std", "sat_org_cls_avg", "sat_org_cls_max", "sat_org_num_capitals", "weights_Depth",
-    "weights_InstCount", "weights_CPInstCount", "weights_QueryCost", "weights_CoveringNew",
+    "sat_org_num_msb", "sat_org_cls_std", "sat_org_cls_avg", "sat_org_cls_max", "sat_org_num_capitals", 
+    "weights_Depth", "weights_InstCount", "weights_CPInstCount", "weights_QueryCost", "weights_CoveringNew",
     "weights_MinDistToUncovered", "weights_forkDisabled"]
 
 
@@ -69,6 +69,7 @@ def parse_args(argv=None):
     parser.add_argument('-w', "--weights", default='weights.json', help="Weights for KLEE searcher, in JSON format")
     parser.add_argument('-nr', "--num-runs", default=2, type=int, help="Number of KLEE sessions to run")
     parser.add_argument('-ni', "--num-inits", default=100, type=int, help="Number of random initial values x0 to try for each optimization session")
+    parser.add_argument('-wi', "--weights-init", default=False, action='store_true', help="If True, initiate weights vector to contain only weight_* features")
     parser.add_argument('-si', "--save-interval", default=1, type=int, help="Save data interval (of KLEE sessions)")
     
     # output
@@ -344,7 +345,10 @@ def main():
     
     # goal function
     f = lambda w: -func(w, args)
-    x0 = [random() * 2 - 1 for feat in features]
+    if args.weights_init:
+        x0 = [1.0 if 'weights_' in feat else EPS for feat in features]
+    else:
+        x0 = [random() * 2 - 1 for feat in features]
     callb = lambda x: print("minimum %.4f, found at %s" % (None if x is None else f(x), x))
     
     try:

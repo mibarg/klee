@@ -8,6 +8,20 @@ cd $mazename
 # run each opt separately
 ### Nelder-Mead"
 declare opt="Nelder-Mead"
+mkdir "WI-Nelder-Mead"
+cp $maze "WI-Nelder-Mead"
+cd "WI-Nelder-Mead"
+python3 ~/source/klee/learn/learn_weights.py -kd ~/klee_build_dir/bin -ki $1 -ka "--warnings-only-to-file -max-time=$2" -nr $3 -ni 1 -wi -s -g "ICov(%)" -mm $opt
+cd ..
+### Powell
+declare opt="Powell"
+mkdir "WI-Powell"
+cp $maze "WI-Powell"
+cd "WI-Powell"
+python3 ~/source/klee/learn/learn_weights.py -kd ~/klee_build_dir/bin -ki $1 -ka "--warnings-only-to-file -max-time=$2" -nr $3 -ni 1 -wi -s -g "ICov(%)" -mm $opt
+cd ..
+### Nelder-Mead"
+declare opt="Nelder-Mead"
 mkdir $opt
 cp $maze $opt
 cd $opt
